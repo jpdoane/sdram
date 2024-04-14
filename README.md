@@ -1,6 +1,6 @@
 # sdram
 
-Simple Verilog controller core for the [Alliance AS4C32M16SB](docs/AS4C32M16SB.pdf) or the (drop in equivalent) [Winbond W9825G6KH](docs/w9825g6kh.pdf) 64MB SDRAM modules.
+Simple Verilog controller core for the 64MB [Alliance AS4C32M16SB](docs/AS4C32M16SB.pdf) or the (pin equivalent) 32MB [Winbond W9825G6KH](docs/w9825g6kh.pdf) SDRAM modules.
 
 Includes a [board design](board/sdram.pdf) compatible with the [ChipKit shield connector](https://digilent.com/reference/_media/reference/programmable-logic/arty-z7/arty-z7-shield.png) on the [Arty Z7-20](https://digilent.com/reference/programmable-logic/arty-z7/reference-manual)
 

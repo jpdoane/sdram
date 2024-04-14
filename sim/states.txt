@@ -1,0 +1,8 @@
+0 BOOT           
+1 PRECHARGE      
+2 MODESET        
+3 REFRESH        
+4 IDLE           
+5 ACTIVATE       
+6 READ           
+7 WRITE          

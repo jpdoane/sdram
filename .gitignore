@@ -1,0 +1,4 @@
+*.vcd
+*.vvp
+hdl/working/*
+*_proj
