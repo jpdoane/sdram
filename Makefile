@@ -6,14 +6,14 @@ SIMCOMPILER := iverilog
 SIMULATOR := vvp
 VIEWER := gtkwave
 
-TOPMODULE := sdram_tb
+TOPMODULE := sdram_nes_tb
 
 # SYNTHFLAGS := -p synth_ice40 -top $(TOPMODULE)
 # PNRFLAGS := -d $(subst hx,,$(subst lp,,$(DEVICE)))
-SIMCOMPFLAGS := -g2012
+SIMCOMPFLAGS := -g2012 -pfileline=1
 SIMFLAGS := 
 
-TB = sdram_tb
+TB = sdram_nes_tb
 
 SRCS = $(wildcard hdl/*.sv)
 MODELSRC = models/MT48LC8M16A2.v
@@ -54,6 +54,7 @@ $(VVP): %.vvp: $(TBSRCS) $(SRCS) $(MODELSRC)
 
 $(VCD): $(VVP)
 	$(SIMULATOR) $(SIMFLAGS) $^
+	mv *.vcd sim
 
 clean:
 	@rm -f $(VVP) $(VCD) $(BLIFS) $(BINS) $(RPTS)

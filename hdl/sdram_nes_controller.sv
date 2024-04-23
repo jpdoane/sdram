@@ -1,4 +1,4 @@
-`timescale 1ns/1ps
+`timescale 1ns / 100ps
 
 // sdram controller for use in NES
 // ram is clocked at 8x ppu clock (~42HMz)
@@ -46,22 +46,22 @@ module sdram_nes_controller #(
     output logic [7:0] cpu_data_rd,
 
     // sdram pins
-    output logic [12:0] sd_a,
-    output logic [1:0] sd_bs,
-    output logic sd_cs_n,
-    output logic sd_ras_n,
-    output logic sd_cas_n,
-    output logic sd_we_n,
-    output logic [1:0] sd_dqm,
-    output logic sd_cke,
+    output logic [12:0] sdram_a,
+    output logic [1:0] sdram_bs,
+    output logic sdram_cs_n,
+    output logic sdram_ras_n,
+    output logic sdram_cas_n,
+    output logic sdram_we_n,
+    output logic [1:0] sdram_dqm,
+    output logic sdram_cke,
 
     // sdram datra iopins
-    input logic [15:0] sd_din,
-    output logic [15:0] sd_dout,
-    output logic sd_dout_en
+    input logic [15:0] sdram_din,
+    output logic [15:0] sdram_dout,
+    output logic sdram_dout_en
 );
 
-// sdram control words for sd_cmd
+// sdram control words for sdram_cmd
 localparam SDRAM_ACTIVATE           =   3'b011;
 localparam SDRAM_PRECHARGE          =   3'b010; //A10: all vs bank
 localparam SDRAM_WRITE              =   3'b100; //A10: auto precharge
@@ -104,13 +104,13 @@ logic [3:0] state, state_next;
 wire refresh_cycle = cycle==5'd21;
 
 // ppu and cpu specific controller signals
-logic [15:0] ppu_sd_data_out, cpu_sd_data_out;
-logic ppu_sd_data_out_en, cpu_sd_data_out_en;
-logic [13:0] ppu_sd_a, cpu_sd_a;
-logic [2:0] sd_cmd, ppu_sd_cmd, cpu_sd_cmd;
-logic [1:0] ppu_sd_dqm, cpu_sd_dqm;
+logic [15:0] ppu_sdram_data_out, cpu_sdram_data_out;
+logic ppu_sdram_data_out_en, cpu_sdram_data_out_en;
+logic [12:0] ppu_sdram_a, cpu_sdram_a;
+logic [2:0] sdram_cmd, ppu_sdram_cmd, cpu_sdram_cmd;
+logic [1:0] ppu_sdram_dqm, cpu_sdram_dqm;
 logic cpu_en, ppu_en;
-assign {sd_ras_n, sd_cas_n, sd_we_n} = sd_cmd;
+assign {sdram_ras_n, sdram_cas_n, sdram_we_n} = sdram_cmd;
 
 always_ff @(posedge clk)
 begin
@@ -132,21 +132,23 @@ begin
     end
 end
 
-
-always_comb
+logic test;
+always @(*)
 begin
-    sd_a = 13'b0;
-    sd_bs = 2'b0;
-    sd_cs_n = 1'b0;
-    sd_dqm = 2'b11;
-    sd_dout_en = 1'b0;
-    sd_cke = 1'b1;
-    sd_cmd = SDRAM_NOP;
+    sdram_a = 13'b0;
+    sdram_bs = 2'b0;
+    sdram_cs_n = 1'b0;
+    sdram_dqm = 2'b11;
+    sdram_dout = 0;
+    sdram_dout_en = 1'b0;
+    sdram_cke = 1'b1;
+    sdram_cmd = SDRAM_NOP;
     rdy = 0;
     state_next = state;
     reset_ticks = 0;
     cpu_en = 0;
     ppu_en = 0;
+    test = 0;
     
     case(state)
         // boot sequence is:
@@ -164,19 +166,19 @@ begin
             end
         end
         STATE_PRECHARGE: begin 
-            sd_cmd = SDRAM_PRECHARGE;
-            sd_a[10] = 1;
+            sdram_cmd = SDRAM_PRECHARGE;
+            sdram_a[10] = 1;
             state_next = STATE_MODESET;
         end
         STATE_MODESET: begin
-            sd_cmd = SDRAM_MODE_SET;
-            sd_a = sdmode;
-            sd_bs = 2'b0;
+            sdram_cmd = SDRAM_MODE_SET;
+            sdram_a = sdmode;
+            sdram_bs = 2'b0;
             state_next = STATE_REFRESH;
             reset_ticks = 1;
         end
         STATE_REFRESH: begin
-            if(refresh_cycle) sd_cmd = SDRAM_AUTO_REFRESH;
+            if(refresh_cycle) sdram_cmd = SDRAM_AUTO_REFRESH;
             if (ticks == 8) begin
                 // proceed to main loop afer 8 refresh cycles
                 reset_ticks = 1;
@@ -188,22 +190,29 @@ begin
             cpu_en = (cycle[4:3] == 0); // only enable cpu on 1st 8 cycles
             ppu_en = 1;
             if (cycle[0] == 0) begin
+                // $display("ppu cycle %d time %t", cycle, $time);
                 // ppu interleaved cycles
-                sd_dout = ppu_sd_data_out;
-                sd_dout_en = ppu_sd_data_out_en;
-                sd_a = ppu_sd_a;
-                sd_cmd = ppu_sd_cmd;
-                sd_dqm = ppu_sd_dqm;
+
+                sdram_dout = ppu_sdram_data_out;
+                sdram_dout_en = ppu_sdram_data_out_en;
+                sdram_a = ppu_sdram_a;
+                sdram_cmd = ppu_sdram_cmd;
+                sdram_dqm = ppu_sdram_dqm;
+                sdram_bs = 2'h0;
             end else if (cpu_en && cycle[0]) begin
+                // $display("cpu cycle %d time %t", cycle, $time);
                 // cpu interleaved cycles (1/3 of time)
-                sd_dout = cpu_sd_data_out;
-                sd_dout_en = cpu_sd_data_out_en;
-                sd_a = cpu_sd_a;
-                sd_cmd = cpu_sd_cmd;
-                sd_dqm = cpu_sd_dqm;
+
+                sdram_dout = cpu_sdram_data_out;
+                sdram_dout_en = cpu_sdram_data_out_en;
+                sdram_a = cpu_sdram_a;
+                sdram_cmd = cpu_sdram_cmd;
+                sdram_dqm = cpu_sdram_dqm;
+                sdram_bs = 2'h1;
             end else if (refresh_cycle && ticks==TICKS_REFRESH-1) begin
+                // $display("refresh cycle %d time %t", cycle, $time);
                 // refresh as needed 
-                sd_cmd = SDRAM_AUTO_REFRESH;                
+                sdram_cmd = SDRAM_AUTO_REFRESH;                
                 reset_ticks = 1;
             end
         end
@@ -225,12 +234,12 @@ sdram_interleavedbank_controller
     .rd(ppu_rd),
     .wr(ppu_wr),
     .data_out(ppu_data_rd),
-    .sd_data_in(sd_data_in),
-    .sd_data_out(ppu_sd_data_out),
-    .sd_data_out_en(ppu_sd_data_out_en),
-    .sd_a(ppu_sd_a),
-    .sd_cmd(ppu_sd_cmd),
-    .sd_dqm(ppu_sd_dqm)
+    .sdram_data_in(sdram_din),
+    .sdram_data_out(ppu_sdram_data_out),
+    .sdram_data_out_en(ppu_sdram_data_out_en),
+    .sdram_a(ppu_sdram_a),
+    .sdram_cmd(ppu_sdram_cmd),
+    .sdram_dqm(ppu_sdram_dqm)
     );
 
 sdram_interleavedbank_controller
@@ -247,12 +256,12 @@ sdram_interleavedbank_controller
     .rd(cpu_rd),
     .wr(cpu_wr),
     .data_out(cpu_data_rd),
-    .sd_data_in(sd_data_in),
-    .sd_data_out(cpu_sd_data_out),
-    .sd_data_out_en(cpu_sd_data_out_en),
-    .sd_a(cpu_sd_a),
-    .sd_cmd(cpu_sd_cmd),
-    .sd_dqm(cpu_sd_dqm)
+    .sdram_data_in(sdram_din),
+    .sdram_data_out(cpu_sdram_data_out),
+    .sdram_data_out_en(cpu_sdram_data_out_en),
+    .sdram_a(cpu_sdram_a),
+    .sdram_cmd(cpu_sdram_cmd),
+    .sdram_dqm(cpu_sdram_dqm)
     );
 
 

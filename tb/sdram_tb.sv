@@ -105,18 +105,18 @@ u_sdram_controller(
     .rdy      (rdy      ),
     .val      (val      ),
     .data_rd (data_rd ),
-    .sd_a     (sdram_a     ),
-    .sd_bs    (sdram_bs    ),
-    .sd_cs_n  (sdram_cs_n  ),
-    .sd_ras_n (sdram_ras_n ),
-    .sd_cas_n (sdram_cas_n ),
-    .sd_we_n  (sdram_we_n  ),
-    .sd_udqm  (sdram_udqm  ),
-    .sd_ldqm  (sdram_ldqm  ),
-    .sd_cke   (sdram_cke   ),
-    .sd_din    (sdram_din    ),
-    .sd_dout    (sdram_dout    ),
-    .sd_dout_en    (sdram_dout_en    )
+    .sdram_a     (sdram_a     ),
+    .sdram_bs    (sdram_bs    ),
+    .sdram_cs_n  (sdram_cs_n  ),
+    .sdram_ras_n (sdram_ras_n ),
+    .sdram_cas_n (sdram_cas_n ),
+    .sdram_we_n  (sdram_we_n  ),
+    .sdram_udqm  (sdram_udqm  ),
+    .sdram_ldqm  (sdram_ldqm  ),
+    .sdram_cke   (sdram_cke   ),
+    .sdram_din    (sdram_din    ),
+    .sdram_dout    (sdram_dout    ),
+    .sdram_dout_en    (sdram_dout_en    )
 );
 
 

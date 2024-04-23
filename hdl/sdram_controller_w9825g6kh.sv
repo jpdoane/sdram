@@ -15,19 +15,19 @@ module sdram_controller_w9825g6kh #(
     output logic [7:0] data_rd,
 
     // sdram pins
-    output logic [12:0] sd_a,
-    output logic [1:0] sd_bs,
-    output logic sd_cs_n,
-    output logic sd_ras_n,
-    output logic sd_cas_n,
-    output logic sd_we_n,
-    output logic sd_udqm, sd_ldqm,
-    output logic sd_cke,
+    output logic [12:0] sdram_a,
+    output logic [1:0] sdram_bs,
+    output logic sdram_cs_n,
+    output logic sdram_ras_n,
+    output logic sdram_cas_n,
+    output logic sdram_we_n,
+    output logic sdram_udqm, sdram_ldqm,
+    output logic sdram_cke,
 
     // sdram datra iopins
-    input logic [15:0] sd_din,
-    output logic [15:0] sd_dout,
-    output logic sd_dout_en
+    input logic [15:0] sdram_din,
+    output logic [15:0] sdram_dout,
+    output logic sdram_dout_en
 );
 
 localparam ADDR_DEPTH = 25;
@@ -73,18 +73,18 @@ u_sdram_controller (
     .rdy                  (rdy),
     .val                  (val),
     .data_rd              (data_rd),
-    .sd_a                 (sd_a),
-    .sd_bs                (sd_bs),
-    .sd_cs_n              (sd_cs_n),
-    .sd_ras_n             (sd_ras_n),
-    .sd_cas_n             (sd_cas_n),
-    .sd_we_n              (sd_we_n),
-    .sd_udqm              (sd_udqm),
-    .sd_ldqm              (sd_ldqm),
-    .sd_cke               (sd_cke),
-    .sd_din               (sd_din),
-    .sd_dout              (sd_dout),
-    .sd_dout_en           (sd_dout_en)
+    .sdram_a                 (sdram_a),
+    .sdram_bs                (sdram_bs),
+    .sdram_cs_n              (sdram_cs_n),
+    .sdram_ras_n             (sdram_ras_n),
+    .sdram_cas_n             (sdram_cas_n),
+    .sdram_we_n              (sdram_we_n),
+    .sdram_udqm              (sdram_udqm),
+    .sdram_ldqm              (sdram_ldqm),
+    .sdram_cke               (sdram_cke),
+    .sdram_din               (sdram_din),
+    .sdram_dout              (sdram_dout),
+    .sdram_dout_en           (sdram_dout_en)
 );
 
 endmodule
