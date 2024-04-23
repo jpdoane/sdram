@@ -29,8 +29,8 @@ initial
 logic [4:0] cycle;
 initial begin
     clk = 0;
-    ppu_clk = 0;
-    cpu_clk = 0;
+    // ppu_clk = 0;
+    // cpu_clk = 0;
     rst = 1;
     cycle = 0;
     repeat(10) @(posedge clk);
@@ -45,32 +45,27 @@ always begin
     clk = ~clk;
 end
 
-logic ppu_clk, cpu_clk;
-always begin
-    wait(~rst);
-    ppu_clk = ~ppu_clk;
-    #(HALF_CLK_PERIOD*8);
-end
-always begin
-    wait(~rst);
-    cpu_clk = ~cpu_clk;
-    #(HALF_CLK_PERIOD*24);
-end
 
-logic sync;
 always @(posedge clk) begin
     if(rst) begin
-        cycle <= 1;
+        cycle <= 0;
     end else begin
         // $display("cycle %d", cycle);
         cycle <= cycle == 5'd23 ? 0 : cycle + 1;
-        sync <= cycle==0;
     end
 end 
 
+logic cpu_clk_gate, ppu_clk_gate;
+always_ff @(negedge clk) begin
+  ppu_clk_gate <= cycle[2:0] == 0;
+  cpu_clk_gate <= cycle == 0;
+end
+wire sync = cpu_clk_gate;
 
-// wire ppu_clk = !rst & clk & (cycle[2:0] == 0);
-// wire cpu_clk = !rst & clk & (cycle == 0);
+wire ppu_clk = clk & ppu_clk_gate;
+wire cpu_clk = clk & cpu_clk_gate;
+
+
 
 
 int cpu_cnt;

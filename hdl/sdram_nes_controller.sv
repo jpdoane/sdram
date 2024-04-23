@@ -7,14 +7,14 @@
 //  every 8 cycles is ppu read
 //  every 24 cycles is cpu read
 // 8-cycle period:
-// 1:   Activate PPU Bank
-// 2:   Activate CPU Bank (1st pass)
-// 3:   Read/Write PPU
-// 4:   Read/Write CPU (1st pass)
-// 5:   PPU data valid 
-// 6:   CPU data valid (1st pass) or autorefresh (as needed)
-// 7:   NOP
-// 8:   NOP
+// 0:   Activate PPU Bank
+// 1:   Activate CPU Bank (1st pass)
+// 2:   Read/Write PPU
+// 3:   Read/Write CPU (1st pass)
+// 4:   PPU data valid 
+// 5:   CPU data valid (1st pass) or autorefresh (as needed)
+// 6:   NOP
+// 7:   NOP (sample next command)
 
 // sync manually restarts this cycle (e.g. to align with cpu/ppu clicks)
 
@@ -120,7 +120,8 @@ begin
         cycle <= 0;
     end else begin
             
-        if (sync || tick) cycle <= 0;
+        if (sync) cycle <= 23;
+        else if (tick) cycle <= 0;
         else cycle <= cycle + 1;
 
         if(reset_ticks) begin
