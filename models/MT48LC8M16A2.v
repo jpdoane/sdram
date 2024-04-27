@@ -566,6 +566,7 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
                     Bank_addr[2] = ba;
                 end else if (Cas_latency_2 == 1'b1) begin
                     if (addr[10] == 1'b1) begin
+                        $display("CAS2 rd w/pc");
                         Command[1] = `READ_A;
                     end else begin
                         Command[1] = `READ;

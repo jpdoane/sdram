@@ -13,7 +13,7 @@ TOPMODULE := sdram_nes_tb
 SIMCOMPFLAGS := -g2012 -pfileline=1
 SIMFLAGS := 
 
-TB = sdram_nes_tb
+TB = sdram_multi_tb
 
 SRCS = $(wildcard hdl/*.sv)
 MODELSRC = models/MT48LC8M16A2.v
