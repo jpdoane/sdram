@@ -8,7 +8,7 @@ parameter QTR_CLK_PERIOD=CLK_PERIOD/4;
 parameter ADDR_DEPTH=23;
 parameter COL_DEPTH=9;
 
-parameter DEBUG_SDRAM=1;
+parameter DEBUG_SDRAM=0;
 
 logic clk, rst;
 logic [7:0] data_wr;
@@ -35,7 +35,7 @@ initial begin
     tb_cycle = 0;
     repeat(10) @(posedge clk);
     rst = 0;
-    repeat(200) @(posedge clk);
+    repeat(1000) @(posedge clk);
     $display("Sim finished at time %t", $time);
     $finish;
 end
@@ -71,10 +71,8 @@ end
 
 
 
-
-
 int cpu_cnt;
-always  @(posedge cpu_clk)
+always  @(posedge cpu_clk) begin
     if(rst || ~rdy) begin
         cpu_data_wr <= 0;
         cpu_addr <= 0;
@@ -104,10 +102,13 @@ always  @(posedge cpu_clk)
             // write new data
             cpu_wr <= 1;    
             cpu_rd <= 0;    
-            cpu_data_wr <= $urandom%256;
-            cpu_addr <= $urandom%((2**ADDR_DEPTH)-1);
+            cpu_data_wr <= $urandom;
+            cpu_addr <= $urandom;
+            // cpu_data_wr <= $urandom % 256;
+            // cpu_addr <= $urandom % ((2**ADDR_DEPTH)-1);
             cpu_cnt <= cpu_cnt+1;
         end
+    end
 end
 
 int ppu_cnt;
@@ -141,8 +142,10 @@ always  @(posedge ppu_clk)
             // write new data
             ppu_wr <= 1;    
             ppu_rd <= 0;    
-            ppu_data_wr <= $urandom%256;
-            ppu_addr <= $urandom%((2**ADDR_DEPTH)-1);
+            // ppu_data_wr <= $urandom%256;
+            // ppu_addr <= $urandom%((2**ADDR_DEPTH)-1);
+            ppu_data_wr <= $urandom;
+            ppu_addr <= $urandom;
             ppu_cnt <= ppu_cnt+1;
         end
 end
@@ -172,17 +175,18 @@ sdram_controller_multibank #(
     .rst              (rst),
     .rdy              (rdy),
     .sync             (sync),
+    .enable_refresh   (1),
     //bank 0 interface
     .data_wr0         (ppu_data_wr),
     .addr0            (ppu_addr),
-    .rd0              (ppu_rd),
-    .wr0              (ppu_wr),
+    .rw0              (ppu_rd),
+    .en0              (ppu_rd || ppu_wr),
     .data_rd0         (ppu_data_rd),
     //bank 1 interface
     .data_wr1         (cpu_data_wr),
     .addr1            (cpu_addr),
-    .rd1              (cpu_rd),
-    .wr1              (cpu_wr),
+    .rw1              (cpu_rd),
+    .en1              ((cpu_rd || cpu_wr) && tb_cycle==0),
     .data_rd1         (cpu_data_rd),
     // sdram pins
     .sdram_a          (sdram_a),
