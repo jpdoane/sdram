@@ -6,17 +6,13 @@ SIMCOMPILER := iverilog
 SIMULATOR := vvp
 VIEWER := gtkwave
 
-TOPMODULE := sdram_tb
-
-# SYNTHFLAGS := -p synth_ice40 -top $(TOPMODULE)
-# PNRFLAGS := -d $(subst hx,,$(subst lp,,$(DEVICE)))
 SIMCOMPFLAGS := -g2012
 SIMFLAGS := 
 
-TB = sdram_tb
+TB = sdram_burst_tb
 
 SRCS = $(wildcard hdl/*.sv)
-MODELSRC = models/MT48LC8M16A2.v
+MODELSRC = models/MT48LC8M16A2_dualbus.v
 TBSRCS = tb/$(TB).sv
 VVP = sim/$(TB).vvp
 VCD = sim/$(TB).vcd

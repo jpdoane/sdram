@@ -8,7 +8,7 @@ parameter QTR_CLK_PERIOD=CLK_PERIOD/4;
 parameter ADDR_DEPTH=24;
 parameter COL_DEPTH=9;
 
-parameter DEBUG_SDRAM=0;
+parameter DEBUG_SDRAM=1;
 
 logic clk, rst;
 logic [7:0] data_wr;
