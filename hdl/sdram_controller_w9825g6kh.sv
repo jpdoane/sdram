@@ -52,7 +52,7 @@ localparam DELAY_REF_INTERVAL  = $floor(tREF_NS/8192/SD_CLK_PERIOD_NS);
 localparam DELAY_RSC =   2;        
 localparam DELAY_STARTUP  = SIM_STARTUP ? 20 : $ceil(210000 / SD_CLK_PERIOD_NS);                                                                        // for NES, SD_CLK_PERIOD_NS = 23.3ns (clock @ PPU*8 = 42.9MHz)
 
-sdram_controller #(
+sdram_core_8bit #(
     .ADDR_DEPTH           (ADDR_DEPTH),
     .COL_DEPTH            (COL_DEPTH),
     .CAS_LATENCY          (CAS_LATENCY),

@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 `define MAX(a,b) ((a > b) ? a : b)
 
-module sdram_controller #(
+module sdram_core_8bit #(
     parameter ADDR_DEPTH            = 25,
     parameter COL_DEPTH             = 10,
     parameter CAS_LATENCY           = 2,
@@ -196,7 +196,6 @@ begin
             sd_a = sdmode;
             sd_bs = 2'b0;
             state_next = STATE_REFRESH;
-            // new_state = phase == `MAX(DELAY_RSC-2,0);
             new_state = phase == `MAX(DELAY_RSC-2,0);
             reset_count = 1;
         end
@@ -259,38 +258,5 @@ begin
         default: begin end
     endcase
 end
-
-
-
-// fixed cycle with interleaved reads:
-// requires CAS = 2, tRAS <= 2clk, tRCD <= 1clk, tRRD <= 2clk, tRC<=3clk
-// CLK 0: Activate A
-// CLK 1: Read A
-// CLK 2: Activate B (APCHG A)
-// CLK 3: Data A, Read B  
-// CLK 4: NOP (APCHG B)
-// CLK 5: Data B, (Auto-refresh if needed)
-// CLK 6: NOP
-// CLK 7: NOP
-
-// write A, read B
-// CLK 0: Activate A
-// CLK 1: Addr A, Data A
-// CLK 2: Activate B (APCHG A)
-// CLK 3: Read B   (APCHG A)
-// CLK 4: NOP (APCHG B)
-// CLK 5: Data B, (Auto-refresh if needed)
-// CLK 6: NOP
-// CLK 7: NOP
-
-// write A, write B (no auto refresh)
-// CLK 0: Activate A
-// CLK 1: Addr A, Data A
-// CLK 2: Activate B
-// CLK 3: Addr B, Data B  (APCHG A)
-// CLK 4: NOP 
-// CLK 5: (APCHG B)
-// CLK 6: NOP
-// CLK 7: NOP
 
 endmodule

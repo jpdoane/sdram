@@ -32,7 +32,7 @@
 //                          Generated File
 //-----------------------------------------------------------------
 
-module sdram_burst
+module sdram_core_32bit
 (
     // Inputs
      input           clk_i

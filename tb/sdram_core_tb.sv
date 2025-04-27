@@ -1,15 +1,15 @@
 `timescale 1ns / 100ps
 
-module sdram_burst_tb;
+module sdram_core_tb;
 
-parameter CLK_PERIOD=23.288;
+parameter CLK_PERIOD=20.0;
 parameter HALF_CLK_PERIOD=CLK_PERIOD/2;
 parameter QTR_CLK_PERIOD=CLK_PERIOD/4;
 
 parameter ADDR_DEPTH=32;
 parameter DATA_DEPTH=32;
 
-parameter DEBUG_SDRAM=0;
+parameter DEBUG_SDRAM=1;
 
 logic clk, rst;
 logic [DATA_DEPTH-1:0] data_rd;
@@ -21,7 +21,10 @@ logic [3:0] wr;
 initial
  begin
     $dumpfile("sdram_wave.vcd");
-    $dumpvars(0,sdram_burst_tb);
+    $dumpvars(0,sdram_core_tb);
+    $dumpoff;
+    #118000; // startupo delay
+    $dumpon;
  end
 
 initial begin
@@ -36,24 +39,37 @@ always begin
     clk = ~clk;
 end
 
-logic [31:0] rand1,rand2,rand3;
-
 initial begin
-    data_wr = 0;
-    addr = 0;
-    wr = 0;
-    rd = 0;
+    repeat(10) begin 
+    data_wr <= 0;
+    addr <= 0;
+    wr <= 0;
+    rd <= 0;
+    @(posedge clk);
 
-    rand1 = $urandom%((2**32)-1);
-    rand2 = $urandom%((2**32)-1);
-    rand3 = $urandom%((2**32)-1);
-    write_word(rand1, rand1);
-    write_word(rand2, rand2);
-    write_word(rand3, rand3);
-    validate_read(rand1, rand1);    
-    validate_read(rand2, rand2);    
-    validate_read(rand3, rand3);
+    addr <= $urandom%((2**32)-1);
+    @(posedge clk);
 
+    // write
+    data_wr <= addr;
+    wr <= '1;
+    @(posedge clk);
+    while(~accept) @(posedge clk); // delay if controller is not ready
+    wr <= 0;
+    data_wr <= 0;
+    $display("at time %t: Writing 0x%0x to 0x%0x", $time, data_wr, addr);
+
+    // read
+    rd <= 1;
+    @(posedge clk);
+    while(~accept) @(posedge clk); // delay if controller is not ready 
+    rd <= 0;
+    while(~ack) @(posedge clk); // delay until result is valid 
+
+    if(data_rd == addr) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, data_rd, addr);
+    else $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x", $time, data_rd, addr);
+
+    end
     $display("Sim finished at time %t", $time);
     $finish;
 end
@@ -76,9 +92,9 @@ assign {sdram_udqm, sdram_ldqm} = sdram_dqm;
 
 logic accept, ack, err;
 
-sdram_burst
+sdram_core_32bit
 #(.SDRAM_READ_LATENCY(2))
-u_sdram_burst(
+u_sdram_core(
 .clk_i                  (clk),
 .rst_i                  (rst),
 .inport_wr_i            (wr),
@@ -122,32 +138,32 @@ MT48LC8M16A2_dualbus #(.Debug(DEBUG_SDRAM)) u_sdram_model(
     .dqm   ({sdram_udqm, sdram_ldqm})
     );
 
-task write_word(input logic [ADDR_DEPTH-1:0] a, input logic [DATA_DEPTH-1:0] data);
-    rd <= 0;
-    wr <= '1;
-    addr <= a;    
-    data_wr <= data;
-    @(posedge clk);
-    while(~accept) @(posedge clk); // delay if controller is not ready
-    wr <= 0;
-    $display("at time %t: Writing 0x%0x to 0x%0x", $time, data, addr);
-endtask
+// task write_word(input logic [ADDR_DEPTH-1:0] a, input logic [DATA_DEPTH-1:0] data);
+//     rd <= 0;
+//     wr <= '1;
+//     addr <= a;    
+//     data_wr <= data;
+//     @(posedge clk);
+//     while(~accept) @(posedge clk); // delay if controller is not ready
+//     wr <= 0;
+//     $display("at time %t: Writing 0x%0x to 0x%0x", $time, data, addr);
+// endtask
 
-task read_word(input logic [ADDR_DEPTH-1:0] a);
-    rd <= 1;
-    wr <= 0;
-    addr <= a;
-    @(posedge clk);
-    while(~accept) @(posedge clk); // delay if controller is not ready 
-    rd <= 0;
-    while(~ack) @(posedge clk); // delay until result is valid 
-    // $display("at time %t: Read 0x%0x from 0x%0x", $time, data_rd, addr);
-endtask
+// task read_word(input logic [ADDR_DEPTH-1:0] a);
+//     rd <= 1;
+//     wr <= 0;
+//     addr <= a;
+//     @(posedge clk);
+//     while(~accept) @(posedge clk); // delay if controller is not ready 
+//     rd <= 0;
+//     while(~ack) @(posedge clk); // delay until result is valid 
+//     // $display("at time %t: Read 0x%0x from 0x%0x", $time, data_rd, addr);
+// endtask
 
-task validate_read(input logic [ADDR_DEPTH-1:0] addr, input logic [DATA_DEPTH-1:0] data_expected);
-    read_word(addr);
-    if(data_rd == data_expected) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, data_rd, addr);
-    else $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x", $time, data_rd, addr);
-endtask
+// task validate_read(input logic [ADDR_DEPTH-1:0] addr, input logic [DATA_DEPTH-1:0] data_expected);
+//     read_word(addr);
+//     if(data_rd == data_expected) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, data_rd, addr);
+//     else $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x", $time, data_rd, addr);
+// endtask
 
 endmodule

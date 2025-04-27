@@ -9,9 +9,10 @@ VIEWER := gtkwave
 SIMCOMPFLAGS := -g2012
 SIMFLAGS := 
 
-TB = sdram_burst_tb
+TB = sdram_dual_tb
 
-SRCS = $(wildcard hdl/*.sv)
+SRCS = hdl/sdram_core_32bit.sv
+SRCS += hdl/sdram_arb.v
 MODELSRC = models/MT48LC8M16A2_dualbus.v
 TBSRCS = tb/$(TB).sv
 VVP = sim/$(TB).vvp
