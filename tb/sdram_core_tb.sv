@@ -9,7 +9,7 @@ parameter QTR_CLK_PERIOD=CLK_PERIOD/4;
 parameter ADDR_DEPTH=32;
 parameter DATA_DEPTH=32;
 
-parameter DEBUG_SDRAM=1;
+parameter DEBUG_SDRAM=0;
 
 logic clk, rst;
 
@@ -43,7 +43,7 @@ always begin
     clk = ~clk;
 end
 
-initial begin
+always begin
     repeat(10) begin 
     core_if.write_data <= 0;
     core_if.addr <= 0;
@@ -55,7 +55,7 @@ initial begin
     @(posedge clk);
 
     // write
-    core_if.write_data <= addr;
+    core_if.write_data <= core_if.addr;
     core_if.wr <= '1;
     @(posedge clk);
     $display("at time %t: Writing 0x%0x to 0x%0x", $time, core_if.write_data, core_if.addr);
@@ -67,14 +67,13 @@ initial begin
     core_if.rd <= 1;
     @(posedge clk);
     while(~core_if.accept) @(posedge clk); // delay if controller is not ready 
-    rd <= 0;
+    core_if.rd <= 0;
     while(~core_if.ack) @(posedge clk); // delay until result is valid 
 
-    if(core_if.read_data == addr) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
+    if(core_if.read_data == core_if.addr) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
     else $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
 
     end
-    $display("Sim finished at time %t", $time);
     $finish;
 end
 

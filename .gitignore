@@ -2,3 +2,4 @@
 *.vvp
 hdl/working/*
 *_proj
+obj_dir/*

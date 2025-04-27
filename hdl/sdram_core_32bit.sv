@@ -31,6 +31,8 @@
 //-----------------------------------------------------------------
 //                          Generated File
 //-----------------------------------------------------------------
+`timescale 1ns / 100ps
+
 
 interface sdram_core_if (input clk);
     logic  [  3:0]  wr;
@@ -43,11 +45,12 @@ interface sdram_core_if (input clk);
     logic           error;
     logic [ 31:0]   read_data;
 
-    modport man (input wr, rd, len, addr, write_data, clk,
+    modport man (input  accept, ack, error, read_data, clk,
+                    output wr, rd, len, addr, write_data);
+
+    modport sub (input wr, rd, len, addr, write_data, clk,
                  output accept, ack, error, read_data);
   
-    modport sub (input  accept, ack, error, read_data, clk,
-                    output wr, rd, len, addr, write_data);
 endinterface
 
 
@@ -77,7 +80,7 @@ module sdram_core_32bit
     input logic       clk_i,
     input logic       rst_i,
     sdram_core_if.sub core_if,
-    sdram_part_if.sub part_if
+    sdram_part_if.man part_if
 );
 
 //-----------------------------------------------------------------
@@ -150,10 +153,10 @@ localparam SDRAM_TRFC_CYCLES = (60 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
 
 wire          ram_req_w = (ram_wr_w != 4'b0) | ram_rd_w;
 
-assign core_if.ack_o       = ram_ack_w;
-assign core_if.read_data_o = ram_read_data_w;
-assign core_if.error_o     = 1'b0;
-assign core_if.accept_o    = ram_accept_w;
+assign core_if.ack       = ram_ack_w;
+assign core_if.read_data = ram_read_data_w;
+assign core_if.error     = 1'b0;
+assign core_if.accept    = ram_accept_w;
 
 //-----------------------------------------------------------------
 // Registers / Wires
@@ -716,10 +719,10 @@ assign ram_accept_w = (state_q == STATE_READ || state_q == STATE_WRITE0);
 //-----------------------------------------------------------------
 // SDRAM I/O
 //-----------------------------------------------------------------
-assign part_if.clk           = ~clk_i;
-assign part_if.data_out_en   = ~data_rd_en_q;
-assign part_if.data_output   =  data_q;
-assign sdram_data_in_w       = part_if.data_input;
+// assign part_if.clk           = ~clk_i;
+assign part_if.wr_en         = ~data_rd_en_q;
+assign part_if.write_data    =  data_q;
+assign sdram_data_in_w       = part_if.read_data;
 
 assign part_if.cke  = cke_q;
 assign part_if.cs   = command_q[3];

@@ -12,22 +12,19 @@ SRCS = hdl/sdram_core_32bit.sv
 SRCS += hdl/sdram_arb.v
 MODELSRC = models/MT48LC8M16A2_dualbus.v
 TBSRCS = tb/$(TB).sv
-VVP = sim/$(TB).vvp
-VCD = sim/$(TB).vcd
+
+TEST_OBJ = obj_dir/V$(TB)
+
+$(TEST_OBJ): $(SRCS) $(MODELSRC) $(TBSRCS)
+	verilator --binary -j 0 --top $(TB) $^
 
 all: test
 
-test: $(VCD)
+test: $(TEST_OBJ)
+	$(TEST_OBJ)
 
 view: $(VCD)
 	gtkwave $(VCD) &
 
-
-$(VVP): %.vvp: $(TBSRCS) $(SRCS) $(MODELSRC) 
-	$(SIMCOMPILER) $(SIMCOMPFLAGS) $^ -o $@
-
-$(VCD): $(VVP)
-	$(SIMULATOR) $(SIMFLAGS) $^
-
 clean:
-	@rm -f $(VVP) $(VCD) $(BLIFS) $(BINS) $(RPTS)
+	@rm -rf obj_dir
