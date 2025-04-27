@@ -755,10 +755,10 @@ module MT48LC8M16A2_dualbus #(parameter Debug=0) (data_rd, data_wr, addr, ba, cl
         // DQ buffer (Driver/Receiver)
         if (Data_in_enable == 1'b1) begin                                   // Writing Data to Memory
             // Array buffer
-            if (Bank == 2'b00) Dq_dqm [15 : 0] = Bank0 [{Row, Col}];
-            if (Bank == 2'b01) Dq_dqm [15 : 0] = Bank1 [{Row, Col}];
-            if (Bank == 2'b10) Dq_dqm [15 : 0] = Bank2 [{Row, Col}];
-            if (Bank == 2'b11) Dq_dqm [15 : 0] = Bank3 [{Row, Col}];
+            if (Bank == 2'b00) Dq_dqm = Bank0 [{Row, Col}];
+            if (Bank == 2'b01) Dq_dqm = Bank1 [{Row, Col}];
+            if (Bank == 2'b10) Dq_dqm = Bank2 [{Row, Col}];
+            if (Bank == 2'b11) Dq_dqm = Bank3 [{Row, Col}];
             // dqm operation
             if (dqm[0] == 1'b0) Dq_dqm [ 7 : 0] = data_wr [ 7 : 0];
             if (dqm[1] == 1'b0) Dq_dqm [15 : 8] = data_wr [15 : 8];
@@ -766,10 +766,11 @@ module MT48LC8M16A2_dualbus #(parameter Debug=0) (data_rd, data_wr, addr, ba, cl
             // if (dqm[1] == 1'b0) Dq_dqm [15 : 8] = dq [15 : 8];
 
             // Write to memory
-            if (Bank == 2'b00) Bank0 [{Row, Col}] = Dq_dqm [15 : 0];
-            if (Bank == 2'b01) Bank1 [{Row, Col}] = Dq_dqm [15 : 0];
-            if (Bank == 2'b10) Bank2 [{Row, Col}] = Dq_dqm [15 : 0];
-            if (Bank == 2'b11) Bank3 [{Row, Col}] = Dq_dqm [15 : 0];
+            if (Bank == 2'b00) Bank0 [{Row, Col}] = Dq_dqm;
+            if (Bank == 2'b01) Bank1 [{Row, Col}] = Dq_dqm;
+            if (Bank == 2'b10) Bank2 [{Row, Col}] = Dq_dqm;
+            if (Bank == 2'b11) Bank3 [{Row, Col}] = Dq_dqm;
+
             // Output result
             if (dqm == 2'b11) begin
                 if (Debug) $display("at time %t WRITE: Bank = %d Row = %d, Col = %d, Data = Hi-Z due to DQM", $time, Bank, Row, Col);
@@ -788,8 +789,8 @@ module MT48LC8M16A2_dualbus #(parameter Debug=0) (data_rd, data_wr, addr, ba, cl
             if (Bank == 2'b10) Dq_dqm [15 : 0] = Bank2 [{Row, Col}];
             if (Bank == 2'b11) Dq_dqm [15 : 0] = Bank3 [{Row, Col}];
             // dqm operation
-            if (Dqm_reg0[0] == 1'b1) Dq_dqm [ 7 : 0] = 8'bz;
-            if (Dqm_reg0[1] == 1'b1) Dq_dqm [15 : 8] = 8'bz;
+            if (Dqm_reg0[0] == 1'b1) Dq_dqm [ 7 : 0] = 8'b0;
+            if (Dqm_reg0[1] == 1'b1) Dq_dqm [15 : 8] = 8'b0;
             // Display result
             Dq_reg [15 : 0] = #tAC Dq_dqm [15 : 0];
             if (Dqm_reg0 == 2'b11) begin

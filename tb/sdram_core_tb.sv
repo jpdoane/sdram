@@ -9,14 +9,21 @@ parameter QTR_CLK_PERIOD=CLK_PERIOD/4;
 parameter ADDR_DEPTH=32;
 parameter DATA_DEPTH=32;
 
-parameter DEBUG_SDRAM=1;
+parameter DEBUG_SDRAM=0;
 
 logic clk, rst;
-logic [DATA_DEPTH-1:0] data_rd;
-logic [DATA_DEPTH-1:0] data_wr;
-logic [ADDR_DEPTH-1:0] addr;
-logic rd;
-logic [3:0] wr;
+
+logic  [  3:0]  portA_wr;
+logic           portA_rd;
+logic  [  7:0]  portA_len;
+logic  [ 31:0]  portA_addr;
+logic  [ 31:0]  portA_write_data;
+logic          portA_accept;         // command accepted 
+logic          portA_ack;            // command completed
+logic          portA_error;
+logic [ 31:0]  portA_read_data;
+
+
 
 initial
  begin
@@ -39,38 +46,42 @@ always begin
     clk = ~clk;
 end
 
+logic [ 31:0]    dataA[0:5];
+logic [ 31:0]    addrA[0:5];
 always begin
-    repeat(10) begin 
-    data_wr <= 0;
-    addr <= 0;
-    wr <= 0;
-    rd <= 0;
-    @(posedge clk);
+    foreach(addrA[i]) begin
+        addrA[i] = $urandom;
+        dataA[i] = $urandom;
 
-    addr <= $urandom%((2**32)-1);
-    @(posedge clk);
+        portA_write_data <= 0;
+        portA_addr <= 0;
+        portA_wr <= 0;
+        portA_rd <= 0;
+        @(posedge clk);
+    
+        // write
+        portA_addr <= addrA[i];
+        portA_write_data <= dataA[i];
+        portA_wr <= '1;
+        @(posedge clk);
+        while(~portA_accept) @(posedge clk); // delay if controller is not ready
+        portA_wr <= 0;
+        portA_write_data <= 0;
+        $display("at time %t: Writing 0x%0x to 0x%0x on portA", $time, portA_write_data, portA_addr);
+    end    
 
-    // write
-    data_wr <= addr;
-    wr <= '1;
-    @(posedge clk);
-    while(~accept) @(posedge clk); // delay if controller is not ready
-    wr <= 0;
-    data_wr <= 0;
-    $display("at time %t: Writing 0x%0x to 0x%0x", $time, data_wr, addr);
+    foreach(addrA[i]) begin
+        // read
+        portA_addr <= addrA[i];
+        portA_rd <= 1;
+        @(posedge clk);
+        while(~portA_accept) @(posedge clk); // delay if controller is not ready 
+        portA_rd <= 0;
+        while(~portA_ack) @(posedge clk); // delay until result is valid 
 
-    // read
-    rd <= 1;
-    @(posedge clk);
-    while(~accept) @(posedge clk); // delay if controller is not ready 
-    rd <= 0;
-    while(~ack) @(posedge clk); // delay until result is valid 
-
-    if(data_rd == addr) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, data_rd, addr);
-    else $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x", $time, data_rd, addr);
-
+        if(portA_read_data == dataA[i]) $display("at time  %t: Read correct value 0x%0x from 0x%0x on portA", $time, portA_read_data, dataA[i]);
+        else $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x on portA, expected 0x%0x", $time, portA_read_data, addrA[i], dataA[i]);
     end
-    $display("Sim finished at time %t", $time);
     $finish;
 end
 
@@ -97,15 +108,16 @@ sdram_core_32bit
 u_sdram_core(
 .clk_i                  (clk),
 .rst_i                  (rst),
-.inport_wr_i            (wr),
-.inport_rd_i            (rd),
-.inport_len_i           (),
-.inport_addr_i          (addr),
-.inport_write_data_i    (data_wr),
-.inport_accept_o        (accept),
-.inport_ack_o           (ack),
-.inport_error_o         (err),
-.inport_read_data_o     (data_rd),
+
+.inport_wr_i(portA_wr),
+.inport_rd_i(portA_rd),
+.inport_len_i(portA_len),
+.inport_addr_i(portA_addr),
+.inport_write_data_i(portA_write_data),
+.inport_accept_o(portA_accept),
+.inport_ack_o(portA_ack),
+.inport_error_o(portA_error),
+.inport_read_data_o(portA_read_data),
 
 .sdram_data_input_i     (sdram_din),
 .sdram_clk_o            (),
