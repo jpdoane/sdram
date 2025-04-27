@@ -32,36 +32,53 @@
 //                          Generated File
 //-----------------------------------------------------------------
 
+interface sdram_core_if (input clk);
+    logic  [  3:0]  wr;
+    logic           rd;
+    logic  [  7:0]  len;
+    logic  [ 31:0]  addr;
+    logic  [ 31:0]  write_data;
+    logic           accept;
+    logic           ack;
+    logic           error;
+    logic [ 31:0]   read_data;
+
+    modport man (input wr, rd, len, addr, write_data, clk,
+                 output accept, ack, error, read_data);
+  
+    modport sub (input  accept, ack, error, read_data, clk,
+                    output wr, rd, len, addr, write_data);
+endinterface
+
+
+interface sdram_part_if (input clk);
+    logic          cke;
+    logic          cs;
+    logic          ras;
+    logic          cas;
+    logic          we;
+    logic [  1:0]  dqm;
+    logic [ 12:0]  addr;
+    logic [  1:0]  ba;
+    logic [ 15:0]  read_data;
+    logic [ 15:0]  write_data;
+    logic          wr_en;
+
+    modport man (input read_data, clk,
+                 output cke, cs, ras, cas, we, dqm, addr, ba, write_data, wr_en);
+  
+    modport sub (input cke, cs, ras, cas, we, dqm, addr, ba, write_data, wr_en, clk,
+                 output read_data);
+endinterface
+
+
 module sdram_core_32bit
 (
-    // Inputs
-     input           clk_i
-    ,input           rst_i
-    ,input  [  3:0]  inport_wr_i
-    ,input           inport_rd_i
-    ,input  [  7:0]  inport_len_i
-    ,input  [ 31:0]  inport_addr_i
-    ,input  [ 31:0]  inport_write_data_i
-    ,input  [ 15:0]  sdram_data_input_i
-
-    // Outputs
-    ,output          inport_accept_o
-    ,output          inport_ack_o
-    ,output          inport_error_o
-    ,output [ 31:0]  inport_read_data_o
-    ,output          sdram_clk_o
-    ,output          sdram_cke_o
-    ,output          sdram_cs_o
-    ,output          sdram_ras_o
-    ,output          sdram_cas_o
-    ,output          sdram_we_o
-    ,output [  1:0]  sdram_dqm_o
-    ,output [ 12:0]  sdram_addr_o
-    ,output [  1:0]  sdram_ba_o
-    ,output [ 15:0]  sdram_data_output_o
-    ,output          sdram_data_out_en_o
+    input logic       clk_i,
+    input logic       rst_i,
+    sdram_core_if.sub core_if,
+    sdram_part_if.sub part_if
 );
-
 
 //-----------------------------------------------------------------
 // Key Params
@@ -123,20 +140,20 @@ localparam SDRAM_TRFC_CYCLES = (60 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
 //-----------------------------------------------------------------
 // External Interface
 //-----------------------------------------------------------------
-(* mark_debug = "true" *) wire [ 31:0]  ram_addr_w       = inport_addr_i;
-(* mark_debug = "true" *) wire [  3:0]  ram_wr_w         = inport_wr_i;
-(* mark_debug = "true" *) wire          ram_rd_w         = inport_rd_i;
+(* mark_debug = "true" *) wire [ 31:0]  ram_addr_w       = core_if.addr;
+(* mark_debug = "true" *) wire [  3:0]  ram_wr_w         = core_if.wr;
+(* mark_debug = "true" *) wire          ram_rd_w         = core_if.rd;
 (* mark_debug = "true" *) wire          ram_accept_w;
-(* mark_debug = "true" *) wire [ 31:0]  ram_write_data_w = inport_write_data_i;
+(* mark_debug = "true" *) wire [ 31:0]  ram_write_data_w = core_if.write_data;
 (* mark_debug = "true" *) wire [ 31:0]  ram_read_data_w;
 (* mark_debug = "true" *) wire          ram_ack_w;
 
 wire          ram_req_w = (ram_wr_w != 4'b0) | ram_rd_w;
 
-assign inport_ack_o       = ram_ack_w;
-assign inport_read_data_o = ram_read_data_w;
-assign inport_error_o     = 1'b0;
-assign inport_accept_o    = ram_accept_w;
+assign core_if.ack_o       = ram_ack_w;
+assign core_if.read_data_o = ram_read_data_w;
+assign core_if.error_o     = 1'b0;
+assign core_if.accept_o    = ram_accept_w;
 
 //-----------------------------------------------------------------
 // Registers / Wires
@@ -699,19 +716,19 @@ assign ram_accept_w = (state_q == STATE_READ || state_q == STATE_WRITE0);
 //-----------------------------------------------------------------
 // SDRAM I/O
 //-----------------------------------------------------------------
-assign sdram_clk_o           = ~clk_i;
-assign sdram_data_out_en_o   = ~data_rd_en_q;
-assign sdram_data_output_o   =  data_q;
-assign sdram_data_in_w       = sdram_data_input_i;
+assign part_if.clk           = ~clk_i;
+assign part_if.data_out_en   = ~data_rd_en_q;
+assign part_if.data_output   =  data_q;
+assign sdram_data_in_w       = part_if.data_input;
 
-assign sdram_cke_o  = cke_q;
-assign sdram_cs_o   = command_q[3];
-assign sdram_ras_o  = command_q[2];
-assign sdram_cas_o  = command_q[1];
-assign sdram_we_o   = command_q[0];
-assign sdram_dqm_o  = dqm_q;
-assign sdram_ba_o   = bank_q;
-assign sdram_addr_o = addr_q;
+assign part_if.cke  = cke_q;
+assign part_if.cs   = command_q[3];
+assign part_if.ras  = command_q[2];
+assign part_if.cas  = command_q[1];
+assign part_if.we   = command_q[0];
+assign part_if.dqm  = dqm_q;
+assign part_if.ba   = bank_q;
+assign part_if.addr = addr_q;
 
 //-----------------------------------------------------------------
 // Simulation only
