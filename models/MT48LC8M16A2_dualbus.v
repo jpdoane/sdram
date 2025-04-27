@@ -164,7 +164,7 @@ module MT48LC8M16A2_dualbus #(parameter Debug=0) (data_rd, data_wr, addr, ba, cl
     initial begin
     //    Debug = 1'b0;
  
-        Dq_reg = {data_bits{1'bz}};
+        Dq_reg = {data_bits{1'b0}};
         {Data_in_enable, Data_out_enable} = 0;
         {Act_b0, Act_b1, Act_b2, Act_b3} = 4'b0000;
         {Pc_b0, Pc_b1, Pc_b2, Pc_b3} = 4'b0000;
@@ -714,7 +714,7 @@ module MT48LC8M16A2_dualbus #(parameter Debug=0) (data_rd, data_wr, addr, ba, cl
         end
  
         if (Data_out_enable == 1'b0) begin
-            Dq_reg <= #tOH {data_bits{1'bz}};
+            Dq_reg <= #tOH {data_bits{1'b0}};
         end
  
         // Detect Read or Write command
@@ -970,4 +970,3 @@ module MT48LC8M16A2_dualbus #(parameter Debug=0) (data_rd, data_wr, addr, ba, cl
     endspecify
  
 endmodule
- 

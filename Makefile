@@ -9,48 +9,24 @@ VIEWER := gtkwave
 SIMCOMPFLAGS := -g2012
 SIMFLAGS := 
 
-TB = sdram_dual_tb
+TB = sdram_core_tb
 
 SRCS = hdl/sdram_core_32bit.sv
 SRCS += hdl/sdram_arb.v
 MODELSRC = models/MT48LC8M16A2_dualbus.v
 TBSRCS = tb/$(TB).sv
-VVP = sim/$(TB).vvp
-VCD = sim/$(TB).vcd
 
-# BINS := $(PROJ).bin
-# RPTS := $(patsubst %.bin,%.rpt,$(BINS))
-# BLIFS := $(patsubst %.bin,%.blif,$(BINS))
-# ASCS := $(patsubst %.bin,%.asc,$(BINS))
+TEST_OBJ = obj_dir/V$(TB)
+$(TEST_OBJ): $(SRCS) $(MODELSRC) $(TBSRCS)
+	verilator --binary -j 0 --top $(TB) $^
 
 all: test
 
-# timing: $(RPTS)
-
-# bitstream: $(BINS)
-
-test: $(VCD)
+test: $(TEST_OBJ)
+	$(TEST_OBJ)
 
 view: $(VCD)
 	gtkwave $(VCD) &
 
-# $(BLIFS): %.blif: %.v $(MODSRCS)
-#         yosys '$(SYNTHFLAGS) -blif $@' $^
-
-# $(ASCS): %.asc: $(PIN_DEF) %.blif
-#         arachne-pnr $(PNRFLAGS) -o $@ -p $^
-
-# $(BINS): %.bin: %.asc
-#         icepack $< $@
-
-# $(RPTS): %.rpt: %.asc
-#         icetime -d $(DEVICE) -mtr $@ $<
-
-$(VVP): %.vvp: $(TBSRCS) $(SRCS) $(MODELSRC) 
-	$(SIMCOMPILER) $(SIMCOMPFLAGS) $^ -o $@
-
-$(VCD): $(VVP)
-	$(SIMULATOR) $(SIMFLAGS) $^
-
 clean:
-	@rm -f $(VVP) $(VCD) $(BLIFS) $(BINS) $(RPTS)
+	@rm -rf obj_dir

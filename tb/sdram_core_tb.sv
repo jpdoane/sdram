@@ -39,7 +39,7 @@ always begin
     clk = ~clk;
 end
 
-initial begin
+always begin
     repeat(10) begin 
     data_wr <= 0;
     addr <= 0;
