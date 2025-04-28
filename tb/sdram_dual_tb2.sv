@@ -176,7 +176,7 @@ always begin
                 max_latency_a <= latency_a;
             portA_if.wr <= 0;
             portA_if.write_data <= 0;
-            $display("at time %t: Writing 0x%0x to 0x%0x", $time, portA_if.write_data, portA_if.addr);
+            $display("at time %t: Writing 0x%0x to 0x%0x on Port A", $time, portA_if.write_data, portA_if.addr);
             repeat(WAIT_CYCLES_A) @(posedge clk);
         end    
         foreach(addrA[i]) begin
@@ -238,7 +238,7 @@ always begin
             max_latency_b <= latency_b;
         portB_if.wr <= 0;
         portB_if.write_data <= 0;
-        $display("at time %t: Writing 0x%0x to 0x%0x", $time, portB_if.write_data, portB_if.addr);
+        $display("at time %t: Writing 0x%0x to 0x%0x on Port B", $time, portB_if.write_data, portB_if.addr);
     end    
     foreach(addrB[i]) begin
         latency_b <= 0;
