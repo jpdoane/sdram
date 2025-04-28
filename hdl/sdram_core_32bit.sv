@@ -28,68 +28,26 @@
 // USA
 //-----------------------------------------------------------------
 
-//-----------------------------------------------------------------
-//                          Generated File
-//-----------------------------------------------------------------
-`timescale 1ns / 100ps
+// updates by jpdoane
+// - use interfaces
+// - verilator support
+// - remove async reset
 
-
-interface sdram_core_if (input clk);
-    logic  [  3:0]  wr;
-    logic           rd;
-    logic  [  7:0]  len;
-    logic  [ 31:0]  addr;
-    logic  [ 31:0]  write_data;
-    logic           accept;
-    logic           ack;
-    logic           error;
-    logic [ 31:0]   read_data;
-
-    modport man (input  accept, ack, error, read_data, clk,
-                    output wr, rd, len, addr, write_data);
-
-    modport sub (input wr, rd, len, addr, write_data, clk,
-                 output accept, ack, error, read_data);
-  
-endinterface
-
-
-interface sdram_part_if (input clk);
-    logic          cke;
-    logic          cs;
-    logic          ras;
-    logic          cas;
-    logic          we;
-    logic [  1:0]  dqm;
-    logic [ 12:0]  addr;
-    logic [  1:0]  ba;
-    logic [ 15:0]  read_data;
-    logic [ 15:0]  write_data;
-    logic          wr_en;
-
-    modport man (input read_data, clk,
-                 output cke, cs, ras, cas, we, dqm, addr, ba, write_data, wr_en);
-  
-    modport sub (input cke, cs, ras, cas, we, dqm, addr, ba, write_data, wr_en, clk,
-                 output read_data);
-endinterface
-
+`timescale 1ns / 100ps 
 
 module sdram_core_32bit
+#(
+    parameter SDRAM_MHZ              = 50,
+    parameter SDRAM_ADDR_W           = 24,
+    parameter SDRAM_COL_W            = 9,
+    parameter SDRAM_READ_LATENCY     = 3
+)
 (
-    input logic       clk_i,
-    input logic       rst_i,
+    input logic       clk,
+    input logic       rst,
     sdram_core_if.sub core_if,
     sdram_part_if.man part_if
 );
-
-//-----------------------------------------------------------------
-// Key Params
-//-----------------------------------------------------------------
-parameter SDRAM_MHZ              = 50;
-parameter SDRAM_ADDR_W           = 24;
-parameter SDRAM_COL_W            = 9;
-parameter SDRAM_READ_LATENCY     = 3;
 
 //-----------------------------------------------------------------
 // Defines / Local params
@@ -143,7 +101,7 @@ localparam SDRAM_TRFC_CYCLES = (60 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
 //-----------------------------------------------------------------
 // External Interface
 //-----------------------------------------------------------------
-(* mark_debug = "true" *) wire [ 31:0]  ram_addr_w       = core_if.addr;
+(* mark_debug = "true" *) wire [ SDRAM_ADDR_W:0]  ram_addr_w       = core_if.addr[SDRAM_ADDR_W:0];
 (* mark_debug = "true" *) wire [  3:0]  ram_wr_w         = core_if.wr;
 (* mark_debug = "true" *) wire          ram_rd_w         = core_if.rd;
 (* mark_debug = "true" *) wire          ram_accept_w;
@@ -422,23 +380,23 @@ end
 /* verilator lint_on WIDTH */
 
 // Record target state
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
+always @ (posedge clk)
+if (rst)
     target_state_q   <= STATE_IDLE;
 else
     target_state_q   <= target_state_r;
 
 // Record delayed state
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
+always @ (posedge clk)
+if (rst)
     delay_state_q   <= STATE_IDLE;
 // On entering into delay state, record intended next state
 else if (state_q != STATE_DELAY && delay_r != {DELAY_W{1'b0}})
     delay_state_q   <= next_state_r;
 
 // Update actual state
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
+always @ (posedge clk)
+if (rst)
     state_q   <= STATE_INIT;
 // Delaying...
 else if (delay_r != {DELAY_W{1'b0}})
@@ -447,8 +405,8 @@ else
     state_q   <= next_state_r;
 
 // Update delay flops
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
+always @ (posedge clk)
+if (rst)
     delay_q   <= {DELAY_W{1'b0}};
 else
     delay_q   <= delay_r;
@@ -459,16 +417,16 @@ else
 localparam REFRESH_CNT_W = 17;
 
 reg [REFRESH_CNT_W-1:0] refresh_timer_q;
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
+always @ (posedge clk)
+if (rst)
     refresh_timer_q <= SDRAM_START_DELAY + 100;
 else if (refresh_timer_q == {REFRESH_CNT_W{1'b0}})
     refresh_timer_q <= SDRAM_REFRESH_CYCLES;
 else
     refresh_timer_q <= refresh_timer_q - 1;
 
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
+always @ (posedge clk)
+if (rst)
     refresh_q <= 1'b0;
 else if (refresh_timer_q == {REFRESH_CNT_W{1'b0}})
     refresh_q <= 1'b1;
@@ -480,15 +438,15 @@ else if (state_q == STATE_REFRESH)
 //-----------------------------------------------------------------
 
 (* mark_debug = "true" *) reg [SDRAM_DATA_W-1:0] sample_data0_q;
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
+always @ (posedge clk)
+if (rst)
     sample_data0_q <= {SDRAM_DATA_W{1'b0}};
 else
     sample_data0_q <= sdram_data_in_w;
 
 (* mark_debug = "true" *)  reg [SDRAM_DATA_W-1:0] sample_data_q;
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
+always @ (posedge clk)
+if (rst)
     sample_data_q <= {SDRAM_DATA_W{1'b0}};
 else
     sample_data_q <= sample_data0_q;
@@ -498,8 +456,8 @@ else
 //-----------------------------------------------------------------
 integer idx;
 
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
+always @ (posedge clk)
+if (rst)
 begin
     command_q       <= CMD_NOP;
     data_q          <= 16'b0;
@@ -670,8 +628,8 @@ end
 //-----------------------------------------------------------------
 (* mark_debug = "true" *) reg [SDRAM_READ_LATENCY+1:0]  rd_q;
 
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
+always @ (posedge clk)
+if (rst)
     rd_q    <= {(SDRAM_READ_LATENCY+2){1'b0}};
 else
     rd_q    <= {rd_q[SDRAM_READ_LATENCY:0], (state_q == STATE_READ)};
@@ -682,8 +640,8 @@ else
 
 // Buffer upper 16-bits of write data so write command can be accepted
 // in WRITE0. Also buffer lower 16-bits of read data.
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
+always @ (posedge clk)
+if (rst)
     data_buffer_q <= 16'b0;
 else if (state_q == STATE_WRITE0)
     data_buffer_q <= ram_write_data_w[31:16];
@@ -698,8 +656,8 @@ assign ram_read_data_w = {sample_data_q, data_buffer_q};
 //-----------------------------------------------------------------
 reg ack_q;
 
-always @ (posedge clk_i or posedge rst_i)
-if (rst_i)
+always @ (posedge clk)
+if (rst)
     ack_q   <= 1'b0;
 else
 begin
@@ -719,7 +677,7 @@ assign ram_accept_w = (state_q == STATE_READ || state_q == STATE_WRITE0);
 //-----------------------------------------------------------------
 // SDRAM I/O
 //-----------------------------------------------------------------
-// assign part_if.clk           = ~clk_i;
+// assign part_if.clk           = ~clk;
 assign part_if.wr_en         = ~data_rd_en_q;
 assign part_if.write_data    =  data_q;
 assign sdram_data_in_w       = part_if.read_data;

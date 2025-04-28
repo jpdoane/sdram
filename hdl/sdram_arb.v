@@ -3,53 +3,26 @@
 // on simultaneous request, port A has priority
 module sdram_arb
 (
-     input logic          clk_i
-    ,input logic          rst_i
-
-    ,input  logic [  3:0]  portA_wr_i
-    ,input  logic          portA_rd_i
-    ,input  logic [  7:0]  portA_len_i
-    ,input  logic [ 31:0]  portA_addr_i
-    ,input  logic [ 31:0]  portA_write_data_i
-    ,output logic          portA_accept_o         // command accepted 
-    ,output logic          portA_ack_o            // command completed
-    ,output logic          portA_error_o
-    ,output logic [ 31:0]  portA_read_data_o
-
-    ,input  logic [  3:0]  portB_wr_i
-    ,input  logic          portB_rd_i
-    ,input  logic [  7:0]  portB_len_i
-    ,input  logic [ 31:0]  portB_addr_i
-    ,input  logic [ 31:0]  portB_write_data_i
-    ,output logic          portB_accept_o
-    ,output logic          portB_ack_o
-    ,output logic          portB_error_o
-    ,output logic [ 31:0]  portB_read_data_o
-
-    ,output logic  [  3:0]  core_wr_o
-    ,output logic           core_rd_o
-    ,output logic  [  7:0]  core_len_o
-    ,output logic  [ 31:0]  core_addr_o
-    ,output logic  [ 31:0]  core_write_data_o
-    ,input  logic           core_accept_i
-    ,input  logic           core_ack_i
-    ,input  logic           core_error_i
-    ,input  logic [ 31:0]    core_read_data_i
+    input logic          clk,
+    input logic          rst,
+    sdram_core_if.man core_if,
+    sdram_core_if.sub portA_if,
+    sdram_core_if.sub portB_if
 );
 
-wire reqA = portA_rd_i | (portA_wr_i != 0);
-wire reqB = portB_rd_i | (portB_wr_i != 0);
+wire reqA = portA_if.rd | (portA_if.wr != 0);
+wire reqB = portB_if.rd | (portB_if.wr != 0);
 
 // which port is currently using core
 logic usingA;
 logic usingB;
 wire lockA = reqA & !usingB;
 wire lockB = reqB & !(usingA | reqA);
-wire ackA = usingA & core_ack_i;
-wire ackB = usingB & core_ack_i;
+wire ackA = usingA & core_if.ack;
+wire ackB = usingB & core_if.ack;
 
-always_ff @ (posedge clk_i)
-if (rst_i) begin
+always_ff @ (posedge clk)
+if (rst) begin
     usingA   <= 0;
     usingB   <= 0;
 end else begin
@@ -60,52 +33,50 @@ end else begin
     if (lockB) usingB <= 1;
 end
 
+// port -> core signals are assigned immediately on request
 always_comb begin
-    portA_accept_o = 0;
-    portA_ack_o = 0;
-    portA_error_o = 0;
-    portA_read_data_o = '0;
-
-    portB_accept_o = 0;
-    portB_ack_o = 0;
-    portB_error_o = 0;
-    portB_read_data_o = '0;
-
-    core_wr_o = '0;
-    core_rd_o = 0;
-    core_len_o = '0;
-    core_addr_o = '0;
-    core_write_data_o = '0;
-
-    // port -> core signals are assigned immediately on request
+    core_if.wr = '0;
+    core_if.rd = 0;
+    core_if.len = '0;
+    core_if.addr = '0;
+    core_if.write_data = '0;
     if (lockA | (usingA & !ackA)) begin
-        core_wr_o = portA_wr_i;
-        core_rd_o = portA_rd_i;
-        core_len_o = portA_len_i;
-        core_addr_o = portA_addr_i;
-        core_write_data_o = portA_write_data_i;
+        core_if.wr = portA_if.wr;
+        core_if.rd = portA_if.rd;
+        core_if.len = portA_if.len;
+        core_if.addr = portA_if.addr;
+        core_if.write_data = portA_if.write_data;
     end else if (lockB | (usingB & !ackB))  begin
-        core_wr_o = portB_wr_i;
-        core_rd_o = portB_rd_i;
-        core_len_o = portB_len_i;
-        core_addr_o = portB_addr_i;
-        core_write_data_o = portB_write_data_i;
+        core_if.wr = portB_if.wr;
+        core_if.rd = portB_if.rd;
+        core_if.len = portB_if.len;
+        core_if.addr = portB_if.addr;
+        core_if.write_data = portB_if.write_data;
     end
+end
 
-    // core -> port signals are assigned through completion of transaction
+// core -> port signals are assigned through completion of transaction
+always_comb begin
+    portA_if.accept = 0;
+    portA_if.ack = 0;
+    portA_if.error = 0;
+    portA_if.read_data = '0;
+
+    portB_if.accept = 0;
+    portB_if.ack = 0;
+    portB_if.error = 0;
+    portB_if.read_data = '0;
     if (usingA) begin
-        portA_accept_o = core_accept_i;
-        portA_ack_o = core_ack_i;
-        portA_error_o = core_error_i;
-        portA_read_data_o = core_read_data_i;
+        portA_if.accept = core_if.accept;
+        portA_if.ack = core_if.ack;
+        portA_if.error = core_if.error;
+        portA_if.read_data = core_if.read_data;
     end else if (usingB)  begin
-        portB_accept_o = core_accept_i;
-        portB_ack_o = core_ack_i;
-        portB_error_o = core_error_i;
-        portB_read_data_o = core_read_data_i;
+        portB_if.accept = core_if.accept;
+        portB_if.ack = core_if.ack;
+        portB_if.error = core_if.error;
+        portB_if.read_data = core_if.read_data;
     end
-
-
 end
 
 endmodule

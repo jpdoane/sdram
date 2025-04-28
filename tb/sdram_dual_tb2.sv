@@ -1,6 +1,67 @@
 `timescale 1ns / 100ps
 
-module sdram_dual_tb;
+// This is not working:
+//    "Input combinational region did not converge."
+// 
+// class testor;
+
+//     //virtual interface
+//     virtual sdram_core_if vif;
+
+//     //constructor
+//     function new(virtual sdram_core_if vif);
+//         //get the interface from test
+//         this.vif = vif;
+//     endfunction
+
+//     task write_sdram(
+//         input logic  [ 31:0]  addr,
+//         input logic  [ 31:0]  data
+//         );
+
+//         vif.addr <= addr;
+//         vif.write_data <= data;
+//         vif.wr <= '1;
+//         @(posedge vif.clk);
+//         // hold inputs until accepted
+//         while(~vif.accept) @(posedge vif.clk);
+//         vif.wr <= 0;
+//         vif.write_data <= 0;
+//     endtask
+
+//     task read_sdram(
+//         input logic  [ 31:0]  addr
+//         );
+
+//         vif.addr <= addr;
+//         vif.rd <= 1;
+//         @(posedge vif.clk);
+//         // hold inputs until accepted
+//         while(~vif.accept) @(posedge vif.clk); 
+//         vif.rd <= 0;
+//         // hold until data is ready 
+//         while(~vif.ack) @(posedge vif.clk); 
+//     endtask
+
+//     task rw_test();    
+//         localparam num = 2;
+//         logic [31:0] data[0:num-1];
+//         logic [31:0] addr[0:num-1];
+//         foreach(addr[i]) begin
+//             addr[i] = $urandom;
+//             data[i] = $urandom;
+//             this.write_sdram(addr[i], data[i]);
+//             $display("at time %t: Writing 0x%0x to 0x%0x", $time, vif.write_data, vif.addr);
+//         end    
+//         foreach(addr[i]) begin
+//             this.read_sdram(addr[i]);
+//             if(vif.read_data == data[i]) $display("at time  %t: Read correct value 0x%0x from 0x%0x on portB", $time, vif.read_data, addr[i]);
+//             else $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x on portB, expected 0x%0x", $time, vif.read_data, addr[i], data[i]);
+//         end
+//     endtask
+// endclass
+
+module sdram_dual_tb2;
 
 parameter CLK_PERIOD=20.0;
 parameter HALF_CLK_PERIOD=CLK_PERIOD/2;
@@ -20,14 +81,11 @@ logic [3:0] wr;
 
 initial
  begin
-    $dumpfile("sim/sdram_dual_tb.vcd");
-    $dumpvars(0,sdram_dual_tb);
+    $dumpfile("sdram_dual_tb2.vcd");
+    $dumpvars(0,sdram_dual_tb2);
     $dumpoff;
     #118000; // startupo delay
     $dumpon;
-    #10000; // startupo delay
-    $display("Sim finished at time %t", $time);
-    $finish;
 end
 
 initial begin
@@ -42,270 +100,173 @@ always begin
     clk = ~clk;
 end
 
-logic  [  3:0]  portA_wr;
-logic           portA_rd;
-logic  [  7:0]  portA_len;
-logic  [ 31:0]  portA_addr;
-logic  [ 31:0]  portA_write_data;
-logic          portA_accept;         // command accepted 
-logic          portA_ack;            // command completed
-logic          portA_error;
-logic [ 31:0]  portA_read_data;
+// clock ram with 90deg lag
+wire #QTR_CLK_PERIOD sdram_clk = clk; 
 
-logic  [  3:0]  portB_wr;
-logic           portB_rd;
-logic  [  7:0]  portB_len;
-logic  [ 31:0]  portB_addr;
-logic  [ 31:0]  portB_write_data;
-logic           portB_accept;
-logic           portB_ack;
-logic           portB_error;
-logic [ 31:0]   portB_read_data;
-
-logic  [  3:0]  core_wr;
-logic           core_rd;
-logic  [  7:0]  core_len;
-logic  [ 31:0]  core_addr;
-logic  [ 31:0]  core_write_data;
-logic            core_accept;
-logic            core_ack;
-logic            core_err;
-logic [ 31:0]    core_read_data;
-
-
-
-// This is the base transaction object that will be used
-// in the environment to initiate new transactions and
-// capture transactions at DUT interface
-class sdram_port;
-    logic  [  3:0]  wr;
-    logic           rd;
-    logic  [  7:0]  len;
-    logic  [ 31:0]  addr;
-    logic  [ 31:0]  write_data;
-    logic           accept;
-    logic           ack;
-    logic           error;
-    logic [ 31:0]   read_data;
-endclass
-
-// The generator class is used to generate a random
-// number of transactions with random addresses and data
-// that can be driven to the design
-class testor;
-    mailbox drv_mbx;
-    event drv_done;
-
-    int num=2;
-    logic [31:0] data[0:num-1];
-    logic [31:0] addr[0:num-1];
-
-    data.randomize();
-    addr.randomize();
-
-    task run();
-        foreach(addr[i]) begin
-            port_write_data <= 0;
-            port_addr <= 0;
-            port_wr <= 0;
-            port_rd <= 0;
-            @(posedge clk);
-        
-            // write
-            port_addr <= addr[i];
-            port_write_data <= data[i];
-            port_wr <= '1;
-            @(posedge clk);
-            while(~port_accept) @(posedge clk); // delay if controller is not ready
-            port_wr <= 0;
-            port_write_data <= 0;
-            $display("at time %t: Writing 0x%0x to 0x%0x on portA", $time, portA_write_data, portA_addr);
-        end    
-    
-
-        for (int i = 0; i < num; i++) begin
-            switch_item item = new;
-            item.randomize();
-            $display ("T=%0t [Generator] Loop:%0d/%0d create next item", $time, i+1, num);
-            drv_mbx.put(item);
-            @(drv_done);
-        end
-        $display ("T=%0t [Generator] Done generation of %0d items", $time, num);
-    endtask
-endclass
-
-
-logic [ 31:0]    dataA[0:5];
-logic [ 31:0]    addrA[0:5];
-initial begin
-    foreach(addrA[i]) begin
-        addrA[i] = $urandom;
-        dataA[i] = $urandom;
-
-        portA_write_data <= 0;
-        portA_addr <= 0;
-        portA_wr <= 0;
-        portA_rd <= 0;
-        @(posedge clk);
-    
-        // write
-        portA_addr <= addrA[i];
-        portA_write_data <= dataA[i];
-        portA_wr <= '1;
-        @(posedge clk);
-        while(~portA_accept) @(posedge clk); // delay if controller is not ready
-        portA_wr <= 0;
-        portA_write_data <= 0;
-        $display("at time %t: Writing 0x%0x to 0x%0x on portA", $time, portA_write_data, portA_addr);
-
-        #(CLK_PERIOD*20);
-    end    
-
-    foreach(addrA[i]) begin
-        // read
-        portA_addr <= addrA[i];
-        portA_rd <= 1;
-        @(posedge clk);
-        while(~portA_accept) @(posedge clk); // delay if controller is not ready 
-        portA_rd <= 0;
-        while(~portA_ack) @(posedge clk); // delay until result is valid 
-
-        if(portA_read_data == dataA[i]) $display("at time  %t: Read correct value 0x%0x from 0x%0x on portA", $time, portA_read_data, dataA[i]);
-        else $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x on portA, expected 0x%0x", $time, portA_read_data, addrA[i], dataA[i]);
-
-        #(CLK_PERIOD*20);
-    end
-    $finish;
-end
-
-logic [ 31:0]    dataB[0:2];
-logic [ 31:0]    addrB[0:2];    
-initial forever begin
-    foreach(addrB[ii]) begin
-        dataB[ii] = $urandom;
-        addrB[ii] = $urandom;
-
-        // write
-        portB_addr <= addrB[ii];
-        portB_write_data <= dataB[ii];
-        portB_rd <= 0;
-        portB_wr <= '1;
-        @(posedge clk);
-        $display("at time %t: Writing 0x%0x to 0x%0x on portB", $time, dataB[ii], addrB[ii]);
-        while(~portB_accept) @(posedge clk); // delay if controller is not ready
-        portB_wr <= 0;
-        portB_write_data <= 0;
-    end    
-    foreach(addrB[ii]) begin
-        // read
-        portB_addr <= addrB[ii];
-        portB_rd <= 1;
-        @(posedge clk);
-        while(~portB_accept) @(posedge clk); // delay if controller is not ready 
-        portB_rd <= 0;
-        while(~portB_ack) @(posedge clk); // delay until result is valid 
-
-        if(portB_read_data == dataB[ii]) $display("at time  %t: Read correct value 0x%0x from 0x%0x on portB", $time, portB_read_data, addrB[ii]);
-        else $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x on portB, expected 0x%0x", $time, portB_read_data, addrB[ii], dataB[ii]);
-    end
-end
+sdram_core_if core_if(clk);
+sdram_core_if portA_if(clk);
+sdram_core_if portB_if(clk);
+sdram_part_if part_if(sdram_clk);
 
 sdram_arb
 u_sdram_arb
 (
-    .clk_i(clk),
-    .rst_i(rst),
-    .portA_wr_i(portA_wr),
-    .portA_rd_i(portA_rd),
-    .portA_len_i(portA_len),
-    .portA_addr_i(portA_addr),
-    .portA_write_data_i(portA_write_data),
-    .portA_accept_o(portA_accept),
-    .portA_ack_o(portA_ack),
-    .portA_error_o(portA_error),
-    .portA_read_data_o(portA_read_data),
-    .portB_wr_i(portB_wr),
-    .portB_rd_i(portB_rd),
-    .portB_len_i(portB_len),
-    .portB_addr_i(portB_addr),
-    .portB_write_data_i(portB_write_data),
-    .portB_accept_o(portB_accept),
-    .portB_ack_o(portB_ack),
-    .portB_error_o(portB_error),
-    .portB_read_data_o(portB_read_data),
-    .core_wr_o( core_wr),
-    .core_rd_o( core_rd),
-    .core_len_o( core_len),
-    .core_addr_o( core_addr),
-    .core_write_data_o( core_write_data),
-    .core_accept_i( core_accept),
-    .core_ack_i( core_ack),
-    .core_error_i( core_err),
-    .core_read_data_i( core_read_data)
+    .clk(clk),
+    .rst(rst),
+    .core_if(core_if.man),
+    .portA_if(portA_if.sub),
+    .portB_if(portB_if.sub)
 );
-    
-
-logic [15:0] sdram_dq;
-logic [15:0] sdram_din;
-logic [15:0] sdram_dout;
-logic sdram_dout_en;
-logic [12:0] sdram_a;
-logic [1:0] sdram_bs;
-logic sdram_cs_n;
-logic sdram_ras_n;
-logic sdram_cas_n;
-logic sdram_we_n;
-logic sdram_udqm;
-logic sdram_ldqm;
-logic sdram_cke;
-logic [1:0] sdram_dqm;
-assign {sdram_udqm, sdram_ldqm} = sdram_dqm;
 
 sdram_core_32bit
 #(.SDRAM_READ_LATENCY(2))
 u_sdram_core(
-.clk_i                  (clk),
-.rst_i                  (rst),
-.inport_wr_i            (core_wr),
-.inport_rd_i            (core_rd),
-.inport_len_i           (core_len),
-.inport_addr_i          (core_addr),
-.inport_write_data_i    (core_write_data),
-.inport_accept_o        (core_accept),
-.inport_ack_o           (core_ack),
-.inport_error_o         (core_err),
-.inport_read_data_o     (core_read_data),
-
-.sdram_data_input_i     (sdram_din),
-.sdram_clk_o            (),
-.sdram_cke_o            (sdram_cke),
-.sdram_cs_o             (sdram_cs_n),
-.sdram_ras_o            (sdram_ras_n),
-.sdram_cas_o            (sdram_cas_n),
-.sdram_we_o             (sdram_we_n),
-.sdram_dqm_o            (sdram_dqm),
-.sdram_addr_o           (sdram_a),
-.sdram_ba_o             (sdram_bs),
-.sdram_data_output_o    (sdram_dout),
-.sdram_data_out_en_o    (sdram_dout_en)
+    .clk                    (clk),
+    .rst                    (rst),
+    .core_if                (core_if.man),
+    .part_if                (part_if.sub)
 );
 
-wire sdram_clk;
-assign #QTR_CLK_PERIOD sdram_clk = clk; // clock ram with 90deg lag
+MT48LC8M16A2 #(.Debug(DEBUG_SDRAM))
+u_sdram_model(part_if.man);
 
-MT48LC8M16A2_dualbus #(.Debug(DEBUG_SDRAM)) u_sdram_model(
-    .data_rd    (sdram_din),
-    .data_wr    (sdram_dout),
-    .addr  (sdram_a),
-    .ba    (sdram_bs),
-    .clk   (sdram_clk),
-    .cke   (sdram_cke),
-    .csb   (sdram_cs_n),
-    .rasb  (sdram_ras_n),
-    .casb  (sdram_cas_n),
-    .web   (sdram_we_n),
-    .dqm   ({sdram_udqm, sdram_ldqm})
-    );
+// testor testorA, testorB;
+// initial begin
+//     testorA = new(portA_if);
+//     testorB = new(portB_if);
+// end
+// always begin
+//     testorA.rw_test();
+// end
+// always begin
+//     testorB.rw_test();
+//     $finish;
+// end
+
+// r/w test for port A
+// want to see port A get priority for intermittant access
+logic [31:0] dataA[0:3];
+logic [31:0] addrA[0:3];
+localparam WAIT_CYCLES_A = 40;
+int max_latency_a = 0;
+int max_latency_b = 0;
+int latency_a = 0;
+int latency_b = 0;
+int error_a = 0;
+int error_b = 0;
+always begin
+    #110000 // startup delay
+    while(rst) @(posedge clk);
+    repeat(20) begin
+        foreach(addrA[i]) begin
+            addrA[i] = $urandom;
+            dataA[i] = $urandom;
+            latency_a <= 0;
+
+            portA_if.addr <= addrA[i];
+            portA_if.write_data <= dataA[i];
+            portA_if.wr <= '1;
+            @(posedge clk);
+            // hold inputs until accepted
+            while(~portA_if.accept) begin
+                latency_a <= latency_a + 1;
+                @(posedge clk);
+            end
+            if (latency_a > max_latency_a)
+                max_latency_a <= latency_a;
+            portA_if.wr <= 0;
+            portA_if.write_data <= 0;
+            $display("at time %t: Writing 0x%0x to 0x%0x", $time, portA_if.write_data, portA_if.addr);
+            repeat(WAIT_CYCLES_A) @(posedge clk);
+        end    
+        foreach(addrA[i]) begin
+            latency_a <= 0;
+
+            portA_if.addr <= addrA[i];
+            portA_if.rd <= 1;
+            @(posedge clk);
+            // hold inputs until accepted
+            while(~portA_if.accept) begin
+                latency_a <= latency_a + 1;
+                @(posedge clk);
+            end
+            portA_if.rd <= 0;
+            // hold until data is ready 
+            while(~portA_if.ack) begin
+                latency_a <= latency_a + 1;
+                @(posedge clk);
+            end
+            if (latency_a > max_latency_a)
+                max_latency_a <= latency_a;
+
+            if(portA_if.read_data == dataA[i]) $display("at time  %t: Read correct value 0x%0x from 0x%0x on portA", $time, portA_if.read_data, addrA[i]);
+            else begin
+                $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x on portA, expected 0x%0x", $time, portA_if.read_data, addrA[i], dataA[i]);
+                error_a <= error_a+1;
+            end
+            repeat(WAIT_CYCLES_A) @(posedge clk);
+        end
+    end
+
+    $display("Sim finished at time %t", $time);
+    $display("port A had %d errors with max latency of %d cycles", error_a, max_latency_a);
+    $display("port B had %d errors with max latency of %d cycles", error_b, max_latency_b);
+    $finish;
+end
+
+// r/w test for port B
+// want to see port B make continous access, but preempted for port A
+logic [31:0] dataB[0:3];
+logic [31:0] addrB[0:3];
+always begin
+    #110000 // startup delay
+    foreach(addrB[i]) begin
+        addrB[i] = $urandom;
+        dataB[i] = $urandom;
+        latency_b <= 0;
+
+        portB_if.addr <= addrB[i];
+        portB_if.write_data <= dataB[i];
+        portB_if.wr <= '1;
+        @(posedge clk);
+        // hold inputs until accepted
+        while(~portB_if.accept) begin
+            latency_b <= latency_b + 1;
+            @(posedge clk);
+        end
+        if (latency_b > max_latency_b)
+            max_latency_b <= latency_b;
+        portB_if.wr <= 0;
+        portB_if.write_data <= 0;
+        $display("at time %t: Writing 0x%0x to 0x%0x", $time, portB_if.write_data, portB_if.addr);
+    end    
+    foreach(addrB[i]) begin
+        latency_b <= 0;
+        portB_if.addr <= addrB[i];
+        portB_if.rd <= 1;
+        @(posedge clk);
+        // hold inputs until accepted
+        while(~portB_if.accept) begin
+            latency_b <= latency_b + 1;
+            @(posedge clk);
+        end
+        portB_if.rd <= 0;
+        // hold until data is ready 
+        while(~portB_if.ack) begin
+            latency_b <= latency_b + 1;
+            @(posedge clk);
+        end
+        if (latency_b > max_latency_b)
+            max_latency_b <= latency_b;
+
+        if(portB_if.read_data == dataB[i]) $display("at time  %t: Read correct value 0x%0x from 0x%0x on portB", $time, portB_if.read_data, addrB[i]);
+        else begin
+            $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x on portB, expected 0x%0x", $time, portB_if.read_data, addrB[i], dataB[i]);
+            error_b <= error_b+1;
+        end
+    end
+end
 
 endmodule
+
 

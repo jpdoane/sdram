@@ -38,41 +38,32 @@
 * 0.0a  Son Huynh       208-368-3825  05/13/1998  - First Release (from 64Mb rev 0.0e)
 *       Micron Technology Inc.
 ****************************************************************************************/
- 
+
+// make separate rd/wr bus to avoid tristate sim issues
+
 `timescale 1ns / 100ps
  
-module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, casb, web, dqm);
+module MT48LC8M16A2 #(parameter Debug=0)
+( sdram_part_if.sub part_if );
 
-    parameter addr_bits =      13;
-    parameter data_bits =      16;
-    parameter col_bits  =       9;
-    parameter mem_sizes = 2097151;                                  // 2 Meg
+    wire clk = part_if.clk;
+    localparam BANK_DEPTH = 2 ** (part_if.ADDR_WIDTH+part_if.COL_WIDTH);                                  // 2 Meg
  
-    inout     [data_bits - 1 : 0] dq;
-    input     [addr_bits - 1 : 0] addr;
-    input                 [1 : 0] ba;
-    input                         clk;
-    input                         cke;
-    input                         csb;
-    input                         rasb;
-    input                         casb;
-    input                         web;
-    input                 [1 : 0] dqm;
- 
-    reg       [data_bits - 1 : 0] Bank0 [0 : mem_sizes];
-    reg       [data_bits - 1 : 0] Bank1 [0 : mem_sizes];
-    reg       [data_bits - 1 : 0] Bank2 [0 : mem_sizes];
-    reg       [data_bits - 1 : 0] Bank3 [0 : mem_sizes];
+
+    reg       [part_if.DATA_WIDTH - 1 : 0] Bank0 [0 : BANK_DEPTH-1];
+    reg       [part_if.DATA_WIDTH - 1 : 0] Bank1 [0 : BANK_DEPTH-1];
+    reg       [part_if.DATA_WIDTH - 1 : 0] Bank2 [0 : BANK_DEPTH-1];
+    reg       [part_if.DATA_WIDTH - 1 : 0] Bank3 [0 : BANK_DEPTH-1];
  
     reg                   [1 : 0] Bank_addr [0 : 3];                // Bank Address Pipeline
-    reg        [col_bits - 1 : 0] Col_addr [0 : 3];                 // Column Address Pipeline
+    reg        [part_if.COL_WIDTH - 1 : 0] Col_addr [0 : 3];                 // Column Address Pipeline
     reg                   [3 : 0] Command [0 : 3];                  // Command Operation Pipeline
     reg                   [1 : 0] Dqm_reg0, Dqm_reg1;               // DQM Operation Pipeline
-    reg       [addr_bits - 1 : 0] B0_row_addr, B1_row_addr, B2_row_addr, B3_row_addr;
+    reg       [part_if.ADDR_WIDTH - 1 : 0] B0_row_addr, B1_row_addr, B2_row_addr, B3_row_addr;
  
-    reg       [addr_bits - 1 : 0] Mode_reg;
-    reg       [data_bits - 1 : 0] Dq_reg, Dq_dqm;
-    reg        [col_bits - 1 : 0] Col_temp, Burst_counter;
+    reg       [part_if.ADDR_WIDTH - 1 : 0] Mode_reg;
+    reg       [part_if.DATA_WIDTH - 1 : 0] Dq_reg, Dq_dqm;
+    reg        [part_if.COL_WIDTH - 1 : 0] Col_temp, Burst_counter;
  
     reg                           Act_b0, Act_b1, Act_b2, Act_b3;   // Bank Activate
     reg                           Pc_b0, Pc_b1, Pc_b2, Pc_b3;       // Bank Precharge
@@ -90,20 +81,20 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
     reg                           Data_out_enable;
  
     reg                   [1 : 0] Bank, Previous_bank;
-    reg       [addr_bits - 1 : 0] Row;
-    reg        [col_bits - 1 : 0] Col, Col_brst;
+    reg       [part_if.ADDR_WIDTH - 1 : 0] Row;
+    reg        [part_if.COL_WIDTH - 1 : 0] Col, Col_brst;
  
     // Internal system clock
     reg                           CkeZ, Sys_clk;
  
     // Commands Decode
-    wire      Active_enable    = ~csb & ~rasb &  casb &  web;
-    wire      Aref_enable      = ~csb & ~rasb & ~casb &  web;
-    wire      Burst_term       = ~csb &  rasb &  casb & ~web;
-    wire      Mode_reg_enable  = ~csb & ~rasb & ~casb & ~web;
-    wire      Prech_enable     = ~csb & ~rasb &  casb & ~web;
-    wire      Read_enable      = ~csb &  rasb & ~casb &  web;
-    wire      Write_enable     = ~csb &  rasb & ~casb & ~web;
+    wire      Active_enable    = ~part_if.cs & ~part_if.ras &  part_if.cas &  part_if.we;
+    wire      Aref_enable      = ~part_if.cs & ~part_if.ras & ~part_if.cas &  part_if.we;
+    wire      Burst_term       = ~part_if.cs &  part_if.ras &  part_if.cas & ~part_if.we;
+    wire      Mode_reg_enable  = ~part_if.cs & ~part_if.ras & ~part_if.cas & ~part_if.we;
+    wire      Prech_enable     = ~part_if.cs & ~part_if.ras &  part_if.cas & ~part_if.we;
+    wire      Read_enable      = ~part_if.cs &  part_if.ras & ~part_if.cas &  part_if.we;
+    wire      Write_enable     = ~part_if.cs &  part_if.ras & ~part_if.cas & ~part_if.we;
  
     // Burst Length Decode
     wire      Burst_length_1   = ~Mode_reg[2] & ~Mode_reg[1] & ~Mode_reg[0];
@@ -121,7 +112,8 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
     // reg       Debug;                         // Debug messages : 1 = On
     wire      Dq_chk           = Sys_clk & Data_in_enable;      // Check setup/hold time for DQ
  
-    assign    dq               = Dq_reg;                        // DQ buffer
+    // assign    dq               = Dq_reg;                        // DQ buffer
+    assign    part_if.read_data               = Dq_reg;                        // DQ buffer
  
     // Commands Operation
     `define   ACT       0
@@ -160,7 +152,7 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
     initial begin
     //    Debug = 1'b0;
  
-        Dq_reg = {data_bits{1'bz}};
+        Dq_reg = {part_if.DATA_WIDTH{1'b0}};
         {Data_in_enable, Data_out_enable} = 0;
         {Act_b0, Act_b1, Act_b2, Act_b3} = 4'b0000;
         {Pc_b0, Pc_b1, Pc_b2, Pc_b3} = 4'b0000;
@@ -183,7 +175,7 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
     always begin
         @ (posedge clk) begin
             Sys_clk = CkeZ;
-            CkeZ = cke;
+            CkeZ = part_if.cke;
         end
         @ (negedge clk) begin
             Sys_clk = 1'b0;
@@ -200,7 +192,7 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
         Col_addr[0] = Col_addr[1];
         Col_addr[1] = Col_addr[2];
         Col_addr[2] = Col_addr[3];
-        Col_addr[3] = {col_bits{1'b0}};
+        Col_addr[3] = {part_if.COL_WIDTH{1'b0}};
  
         Bank_addr[0] = Bank_addr[1];
         Bank_addr[1] = Bank_addr[2];
@@ -219,7 +211,7 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
  
         // dqm pipeline for Read
         Dqm_reg0 = Dqm_reg1;
-        Dqm_reg1 = dqm;
+        Dqm_reg1 = part_if.dqm;
  
         // Read or Write with Auto Precharge Counter
         if (Auto_precharge[0] == 1'b1) begin
@@ -270,40 +262,40 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
         if (Mode_reg_enable == 1'b1) begin
             // Decode CAS Latency, Burst Length, Burst Type, and Write Burst Mode
             if (Pc_b0 == 1'b1 && Pc_b1 == 1'b1 && Pc_b2 == 1'b1 && Pc_b3 == 1'b1) begin
-                Mode_reg = addr;
+                Mode_reg = part_if.addr;
                 if (Debug) begin
                     $display ("at time %t LMR  : Load Mode Register", $time);
                     // CAS Latency
-                    if (addr[6 : 4] == 3'b010)
+                    if (part_if.addr[6 : 4] == 3'b010)
                         $display ("                            CAS Latency      = 2");
-                    else if (addr[6 : 4] == 3'b011)
+                    else if (part_if.addr[6 : 4] == 3'b011)
                         $display ("                            CAS Latency      = 3");
                     else
                         $display ("                            CAS Latency      = Reserved");
                     // Burst Length
-                    if (addr[2 : 0] == 3'b000)
+                    if (part_if.addr[2 : 0] == 3'b000)
                         $display ("                            Burst Length     = 1");
-                    else if (addr[2 : 0] == 3'b001)
+                    else if (part_if.addr[2 : 0] == 3'b001)
                         $display ("                            Burst Length     = 2");
-                    else if (addr[2 : 0] == 3'b010)
+                    else if (part_if.addr[2 : 0] == 3'b010)
                         $display ("                            Burst Length     = 4");
-                    else if (addr[2 : 0] == 3'b011)
+                    else if (part_if.addr[2 : 0] == 3'b011)
                         $display ("                            Burst Length     = 8");
-                    else if (addr[3 : 0] == 4'b0111)
+                    else if (part_if.addr[3 : 0] == 4'b0111)
                         $display ("                            Burst Length     = Full");
                     else
                         $display ("                            Burst Length     = Reserved");
                     // Burst Type
-                    if (addr[3] == 1'b0)
+                    if (part_if.addr[3] == 1'b0)
                         $display ("                            Burst Type       = Sequential");
-                    else if (addr[3] == 1'b1)
+                    else if (part_if.addr[3] == 1'b1)
                         $display ("                            Burst Type       = Interleaved");
                     else
                         $display ("                            Burst Type       = Reserved");
                     // Write Burst Mode
-                    if (addr[9] == 1'b0)
+                    if (part_if.addr[9] == 1'b0)
                         $display ("                            Write Burst Mode = Programmed Burst Length");
-                    else if (addr[9] == 1'b1)
+                    else if (part_if.addr[9] == 1'b1)
                         $display ("                            Write Burst Mode = Single Location Access");
                     else
                         $display ("                            Write Burst Mode = Reserved");
@@ -330,97 +322,97 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
  
         // Active Block (Latch Bank Address and Row Address)
         if (Active_enable == 1'b1) begin
-            if (ba == 2'b00 && Pc_b0 == 1'b1) begin
+            if (part_if.ba == 2'b00 && Pc_b0 == 1'b1) begin
                 {Act_b0, Pc_b0} = 2'b10;
-                B0_row_addr = addr [addr_bits - 1 : 0];
+                B0_row_addr = part_if.addr [part_if.ADDR_WIDTH - 1 : 0];
                 RCD_chk0 = $time;
                 RAS_chk0 = $time;
-                if (Debug) $display ("at time %t ACT  : Bank = 0 Row = %d", $time, addr);
+                if (Debug) $display ("at time %t ACT  : Bank = 0 Row = %d", $time, part_if.addr);
                 // Precharge to Activate Bank 0
                 if ($time - RP_chk0 < tRP) begin
  
            //->tb.test_control.error_detected;
                    $display ("at time %t ERROR: tRP violation during Activate bank 0", $time);
                 end
-            end else if (ba == 2'b01 && Pc_b1 == 1'b1) begin
+            end else if (part_if.ba == 2'b01 && Pc_b1 == 1'b1) begin
                 {Act_b1, Pc_b1} = 2'b10;
-                B1_row_addr = addr [addr_bits - 1 : 0];
+                B1_row_addr = part_if.addr [part_if.ADDR_WIDTH - 1 : 0];
                 RCD_chk1 = $time;
                 RAS_chk1 = $time;
-                if (Debug) $display ("at time %t ACT  : Bank = 1 Row = %d", $time, addr);
+                if (Debug) $display ("at time %t ACT  : Bank = 1 Row = %d", $time, part_if.addr);
                 // Precharge to Activate Bank 1
                 if ($time - RP_chk1 < tRP) begin
  
            //->tb.test_control.error_detected;
                     $display ("at time %t ERROR: tRP violation during Activate bank 1", $time);
                 end
-            end else if (ba == 2'b10 && Pc_b2 == 1'b1) begin
+            end else if (part_if.ba == 2'b10 && Pc_b2 == 1'b1) begin
                 {Act_b2, Pc_b2} = 2'b10;
-                B2_row_addr = addr [addr_bits - 1 : 0];
+                B2_row_addr = part_if.addr [part_if.ADDR_WIDTH - 1 : 0];
                 RCD_chk2 = $time;
                 RAS_chk2 = $time;
-                if (Debug) $display ("at time %t ACT  : Bank = 2 Row = %d", $time, addr);
+                if (Debug) $display ("at time %t ACT  : Bank = 2 Row = %d", $time, part_if.addr);
                 // Precharge to Activate Bank 2
                 if ($time - RP_chk2 < tRP) begin
  
            //->tb.test_control.error_detected;
                     $display ("at time %t ERROR: tRP violation during Activate bank 2", $time);
                 end
-            end else if (ba == 2'b11 && Pc_b3 == 1'b1) begin
+            end else if (part_if.ba == 2'b11 && Pc_b3 == 1'b1) begin
                 {Act_b3, Pc_b3} = 2'b10;
-                B3_row_addr = addr [addr_bits - 1 : 0];
+                B3_row_addr = part_if.addr [part_if.ADDR_WIDTH - 1 : 0];
                 RCD_chk3 = $time;
                 RAS_chk3 = $time;
-                if (Debug) $display ("at time %t ACT  : Bank = 3 Row = %d", $time, addr);
+                if (Debug) $display ("at time %t ACT  : Bank = 3 Row = %d", $time, part_if.addr);
                 // Precharge to Activate Bank 3
                 if ($time - RP_chk3 < tRP) begin
  
            //->tb.test_control.error_detected;
                     $display ("at time %t ERROR: tRP violation during Activate bank 3", $time);
                 end
-            end else if (ba == 2'b00 && Pc_b0 == 1'b0) begin
+            end else if (part_if.ba == 2'b00 && Pc_b0 == 1'b0) begin
  
            //->tb.test_control.error_detected;
                 $display ("at time %t ERROR: Bank 0 is not Precharged.", $time);
-            end else if (ba == 2'b01 && Pc_b1 == 1'b0) begin
+            end else if (part_if.ba == 2'b01 && Pc_b1 == 1'b0) begin
  
            //->tb.test_control.error_detected;
                 $display ("at time %t ERROR: Bank 1 is not Precharged.", $time);
-            end else if (ba == 2'b10 && Pc_b2 == 1'b0) begin
+            end else if (part_if.ba == 2'b10 && Pc_b2 == 1'b0) begin
  
            //->tb.test_control.error_detected;
                 $display ("at time %t ERROR: Bank 2 is not Precharged.", $time);
-            end else if (ba == 2'b11 && Pc_b3 == 1'b0) begin
+            end else if (part_if.ba == 2'b11 && Pc_b3 == 1'b0) begin
  
            //->tb.test_control.error_detected;
                 $display ("at time %t ERROR: Bank 3 is not Precharged.", $time);
             end
             // Active Bank A to Active Bank B
-            if ((Previous_bank != ba) && ($time - RRD_chk < tRRD)) begin
+            if ((Previous_bank != part_if.ba) && ($time - RRD_chk < tRRD)) begin
  
            //->tb.test_control.error_detected;
-                $display ("at time %t ERROR: tRRD violation during Activate bank = %d", $time, ba);
+                $display ("at time %t ERROR: tRRD violation during Activate bank = %d", $time, part_if.ba);
             end
             // Load Mode Register to Active
             if (MRD_chk < tMRD ) begin
  
            //->tb.test_control.error_detected;
-                $display ("at time %t ERROR: tMRD violation during Activate bank = %d", $time, ba);
+                $display ("at time %t ERROR: tMRD violation during Activate bank = %d", $time, part_if.ba);
             end
             // Auto Refresh to Activate
             if ($time - RC_chk < tRC) begin
  
            //->tb.test_control.error_detected;
-                $display ("at time %t ERROR: tRC violation during Activate bank = %d", $time, ba);
+                $display ("at time %t ERROR: tRC violation during Activate bank = %d", $time, part_if.ba);
             end
             // Record variables for checking violation
             RRD_chk = $time;
-            Previous_bank = ba;
+            Previous_bank = part_if.ba;
         end
  
         // Precharge Block
         if (Prech_enable == 1'b1) begin
-            if (addr[10] == 1'b1) begin
+            if (part_if.addr[10] == 1'b1) begin
                 {Pc_b0, Pc_b1, Pc_b2, Pc_b3} = 4'b1111;
                 {Act_b0, Act_b1, Act_b2, Act_b3} = 4'b0000;
                 RP_chk0 = $time;
@@ -442,8 +434,8 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
            //->tb.test_control.error_detected;
                     $display ("at time %t ERROR: tWR violation during Precharge all bank", $time);
                 end
-            end else if (addr[10] == 1'b0) begin
-                if (ba == 2'b00) begin
+            end else if (part_if.addr[10] == 1'b0) begin
+                if (part_if.ba == 2'b00) begin
                     {Pc_b0, Act_b0} = 2'b10;
                     RP_chk0 = $time;
                     if (Debug) $display ("at time %t PRE  : Bank = 0",$time);
@@ -453,7 +445,7 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
                //->tb.test_control.error_detected;
                         $display ("at time %t ERROR: tRAS violation during Precharge bank 0", $time);
                     end
-                end else if (ba == 2'b01) begin
+                end else if (part_if.ba == 2'b01) begin
                     {Pc_b1, Act_b1} = 2'b10;
                     RP_chk1 = $time;
                     if (Debug) $display ("at time %t PRE  : Bank = 1",$time);
@@ -463,7 +455,7 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
                //->tb.test_control.error_detected;
                         $display ("at time %t ERROR: tRAS violation during Precharge bank 1", $time);
                     end
-                end else if (ba == 2'b10) begin
+                end else if (part_if.ba == 2'b10) begin
                     {Pc_b2, Act_b2} = 2'b10;
                     RP_chk2 = $time;
                     if (Debug) $display ("at time %t PRE  : Bank = 2",$time);
@@ -473,7 +465,7 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
                //->tb.test_control.error_detected;
                         $display ("at time %t ERROR: tRAS violation during Precharge bank 2", $time);
                     end
-                end else if (ba == 2'b11) begin
+                end else if (part_if.ba == 2'b11) begin
                     {Pc_b3, Act_b3} = 2'b10;
                     RP_chk3 = $time;
                     if (Debug) $display ("at time %t PRE  : Bank = 3",$time);
@@ -485,25 +477,25 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
                     end
                 end
                 // tWR violation check for write
-                if ($time - WR_chk[ba] < tWRp) begin
+                if ($time - WR_chk[part_if.ba] < tWRp) begin
  
            //->tb.test_control.error_detected;
-                    $display ("at time %t ERROR: tWR violation during Precharge bank %d", $time, ba);
+                    $display ("at time %t ERROR: tWR violation during Precharge bank %d", $time, part_if.ba);
                 end
             end
             // Terminate a Write Immediately (if same bank or all banks)
-            if (Data_in_enable == 1'b1 && (Bank == ba || addr[10] == 1'b1)) begin
+            if (Data_in_enable == 1'b1 && (Bank == part_if.ba || part_if.addr[10] == 1'b1)) begin
                 Data_in_enable = 1'b0;
             end
             // Precharge Command Pipeline for Read
             if (Cas_latency_3 == 1'b1) begin
                 Command[2] = `PRECH;
-                Bank_precharge[2] = ba;
-                A10_precharge[2] = addr[10];
+                Bank_precharge[2] = part_if.ba;
+                A10_precharge[2] = part_if.addr[10];
             end else if (Cas_latency_2 == 1'b1) begin
                 Command[1] = `PRECH;
-                Bank_precharge[1] = ba;
-                A10_precharge[1] = addr[10];
+                Bank_precharge[1] = part_if.ba;
+                A10_precharge[1] = part_if.addr[10];
             end
         end
  
@@ -525,30 +517,30 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
         // Read, Write, Column Latch
         if (Read_enable == 1'b1 || Write_enable == 1'b1) begin
             // Check to see if bank is open (ACT)
-            if ((ba == 2'b00 && Pc_b0 == 1'b1) || (ba == 2'b01 && Pc_b1 == 1'b1) ||
-                (ba == 2'b10 && Pc_b2 == 1'b1) || (ba == 2'b11 && Pc_b3 == 1'b1)) begin
+            if ((part_if.ba == 2'b00 && Pc_b0 == 1'b1) || (part_if.ba == 2'b01 && Pc_b1 == 1'b1) ||
+                (part_if.ba == 2'b10 && Pc_b2 == 1'b1) || (part_if.ba == 2'b11 && Pc_b3 == 1'b1)) begin
  
            //->tb.test_control.error_detected;
-                $display("at time %t ERROR: Cannot Read or Write - Bank %d is not Activated (%d)", $time, ba, Pc_b0);
+                $display("at time %t ERROR: Cannot Read or Write - Bank %d is not Activated (%d)", $time, part_if.ba, Pc_b0);
             end
             // Activate to Read or Write
-            if ((ba == 2'b00) && ($time - RCD_chk0 < tRCD))
+            if ((part_if.ba == 2'b00) && ($time - RCD_chk0 < tRCD))
           begin
          //->tb.test_control.error_detected;
                  $display("at time %t ERROR: tRCD violation during Read or Write to Bank 0", $time);
           end
  
-            if ((ba == 2'b01) && ($time - RCD_chk1 < tRCD))
+            if ((part_if.ba == 2'b01) && ($time - RCD_chk1 < tRCD))
           begin
          //->tb.test_control.error_detected;
                  $display("at time %t ERROR: tRCD violation during Read or Write to Bank 1", $time);
           end
-            if ((ba == 2'b10) && ($time - RCD_chk2 < tRCD))
+            if ((part_if.ba == 2'b10) && ($time - RCD_chk2 < tRCD))
           begin
          //->tb.test_control.error_detected;
                  $display("at time %t ERROR: tRCD violation during Read or Write to Bank 2", $time);
           end
-            if ((ba == 2'b11) && ($time - RCD_chk3 < tRCD))
+            if ((part_if.ba == 2'b11) && ($time - RCD_chk3 < tRCD))
           begin
          //->tb.test_control.error_detected;
                  $display("at time %t ERROR: tRCD violation during Read or Write to Bank 3", $time);
@@ -557,21 +549,21 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
             if (Read_enable == 1'b1) begin
                 // CAS Latency pipeline
                 if (Cas_latency_3 == 1'b1) begin
-                    if (addr[10] == 1'b1) begin
+                    if (part_if.addr[10] == 1'b1) begin
                         Command[2] = `READ_A;
                     end else begin
                         Command[2] = `READ;
                     end
-                    Col_addr[2] = addr;
-                    Bank_addr[2] = ba;
+                    Col_addr[2] = part_if.addr[part_if.COL_WIDTH-1 : 0];
+                    Bank_addr[2] = part_if.ba;
                 end else if (Cas_latency_2 == 1'b1) begin
-                    if (addr[10] == 1'b1) begin
+                    if (part_if.addr[10] == 1'b1) begin
                         Command[1] = `READ_A;
                     end else begin
                         Command[1] = `READ;
                     end
-                    Col_addr[1] = addr;
-                    Bank_addr[1] = ba;
+                    Col_addr[1] = part_if.addr[part_if.COL_WIDTH-1 : 0];
+                    Bank_addr[1] = part_if.ba;
                 end
  
                 // Read interrupt Write (terminate Write immediately)
@@ -581,15 +573,15 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
  
             // Write Command
             end else if (Write_enable == 1'b1) begin
-                if (addr[10] == 1'b1) begin
-                    if (Debug) $display ("at time %t WRITE: Write Bank %d addr %d with Autoprecharge", $time, ba, addr);
+                if (part_if.addr[10] == 1'b1) begin
+                    if (Debug) $display ("at time %t WRITE: Write Bank %d addr %d with Autoprecharge", $time, part_if.ba, part_if.addr);
                     Command[0] = `WRITE_A;
                 end else begin
-                    if (Debug) $display ("at time %t WRITE: Write Bank %d addr %d without Autoprecharge", $time, ba, addr);
+                    if (Debug) $display ("at time %t WRITE: Write Bank %d addr %d without Autoprecharge", $time, part_if.ba, part_if.addr);
                     Command[0] = `WRITE;
                 end
-                Col_addr[0] = addr;
-                Bank_addr[0] = ba;
+                Col_addr[0] = part_if.addr[part_if.COL_WIDTH-1 : 0];
+                Bank_addr[0] = part_if.ba;
  
                 // Write interrupt Write (terminate Write immediately)
                 if (Data_in_enable == 1'b1) begin
@@ -605,23 +597,23 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
             // Interrupting a Write with Autoprecharge
             if (Auto_precharge[Bank] == 1'b1 && Write_precharge[Bank] == 1'b1) begin
                 RW_interrupt_write[Bank] = 1'b1;
-                if (Debug) $display ("at time %t NOTE : Read/Write Bank %d interrupt Write Bank %d with Autoprecharge", $time, ba, Bank);
+                if (Debug) $display ("at time %t NOTE : Read/Write Bank %d interrupt Write Bank %d with Autoprecharge", $time, part_if.ba, Bank);
             end
  
             // Interrupting a Read with Autoprecharge
             if (Auto_precharge[Bank] == 1'b1 && Read_precharge[Bank] == 1'b1) begin
                 RW_interrupt_read[Bank] = 1'b1;
-                if (Debug) $display ("at time %t NOTE : Read/Write Bank %d interrupt Read Bank %d with Autoprecharge", $time, ba, Bank);
+                if (Debug) $display ("at time %t NOTE : Read/Write Bank %d interrupt Read Bank %d with Autoprecharge", $time, part_if.ba, Bank);
             end
  
             // Read or Write with Auto Precharge
-            if (addr[10] == 1'b1) begin
-                Auto_precharge[ba] = 1'b1;
-                Count_precharge[ba] = 0;
+            if (part_if.addr[10] == 1'b1) begin
+                Auto_precharge[part_if.ba] = 1'b1;
+                Count_precharge[part_if.ba] = 0;
                 if (Read_enable == 1'b1) begin
-                    Read_precharge[ba] = 1'b1;
+                    Read_precharge[part_if.ba] = 1'b1;
                 end else if (Write_enable == 1'b1) begin
-                    Write_precharge[ba] = 1'b1;
+                    Write_precharge[part_if.ba] = 1'b1;
                 end
             end
         end
@@ -710,7 +702,7 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
         end
  
         if (Data_out_enable == 1'b0) begin
-            Dq_reg <= #tOH {data_bits{1'bz}};
+            Dq_reg <= #tOH {part_if.DATA_WIDTH{1'b0}};
         end
  
         // Detect Read or Write command
@@ -751,23 +743,27 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
         // DQ buffer (Driver/Receiver)
         if (Data_in_enable == 1'b1) begin                                   // Writing Data to Memory
             // Array buffer
-            if (Bank == 2'b00) Dq_dqm [15 : 0] = Bank0 [{Row, Col}];
-            if (Bank == 2'b01) Dq_dqm [15 : 0] = Bank1 [{Row, Col}];
-            if (Bank == 2'b10) Dq_dqm [15 : 0] = Bank2 [{Row, Col}];
-            if (Bank == 2'b11) Dq_dqm [15 : 0] = Bank3 [{Row, Col}];
+            if (Bank == 2'b00) Dq_dqm = Bank0 [{Row, Col}];
+            if (Bank == 2'b01) Dq_dqm = Bank1 [{Row, Col}];
+            if (Bank == 2'b10) Dq_dqm = Bank2 [{Row, Col}];
+            if (Bank == 2'b11) Dq_dqm = Bank3 [{Row, Col}];
             // dqm operation
-            if (dqm[0] == 1'b0) Dq_dqm [ 7 : 0] = dq [ 7 : 0];
-            if (dqm[1] == 1'b0) Dq_dqm [15 : 8] = dq [15 : 8];
+            if (part_if.dqm[0] == 1'b0) Dq_dqm [ 7 : 0] = part_if.write_data [ 7 : 0];
+            if (part_if.dqm[1] == 1'b0) Dq_dqm [15 : 8] = part_if.write_data [15 : 8];
+            // if (part_if.dqm[0] == 1'b0) Dq_dqm [ 7 : 0] = dq [ 7 : 0];
+            // if (part_if.dqm[1] == 1'b0) Dq_dqm [15 : 8] = dq [15 : 8];
+
             // Write to memory
-            if (Bank == 2'b00) Bank0 [{Row, Col}] = Dq_dqm [15 : 0];
-            if (Bank == 2'b01) Bank1 [{Row, Col}] = Dq_dqm [15 : 0];
-            if (Bank == 2'b10) Bank2 [{Row, Col}] = Dq_dqm [15 : 0];
-            if (Bank == 2'b11) Bank3 [{Row, Col}] = Dq_dqm [15 : 0];
+            if (Bank == 2'b00) Bank0 [{Row, Col}] = Dq_dqm;
+            if (Bank == 2'b01) Bank1 [{Row, Col}] = Dq_dqm;
+            if (Bank == 2'b10) Bank2 [{Row, Col}] = Dq_dqm;
+            if (Bank == 2'b11) Bank3 [{Row, Col}] = Dq_dqm;
+
             // Output result
-            if (dqm == 2'b11) begin
+            if (part_if.dqm == 2'b11) begin
                 if (Debug) $display("at time %t WRITE: Bank = %d Row = %d, Col = %d, Data = Hi-Z due to DQM", $time, Bank, Row, Col);
             end else begin
-                if (Debug) $display("at time %t WRITE: Bank = %d Row = %d, Col = %d, Data = %h, dqm = %b", $time, Bank, Row, Col, Dq_dqm, dqm);
+                if (Debug) $display("at time %t WRITE: Bank = %d Row = %d, Col = %d, Data = %h, dqm = %b", $time, Bank, Row, Col, Dq_dqm, part_if.dqm);
                 // Record tWR time and reset counter
                 WR_chk [Bank] = $time;
                 WR_counter [Bank] = 0;
@@ -781,8 +777,8 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
             if (Bank == 2'b10) Dq_dqm [15 : 0] = Bank2 [{Row, Col}];
             if (Bank == 2'b11) Dq_dqm [15 : 0] = Bank3 [{Row, Col}];
             // dqm operation
-            if (Dqm_reg0[0] == 1'b1) Dq_dqm [ 7 : 0] = 8'bz;
-            if (Dqm_reg0[1] == 1'b1) Dq_dqm [15 : 8] = 8'bz;
+            if (Dqm_reg0[0] == 1'b1) Dq_dqm [ 7 : 0] = 8'b0;
+            if (Dqm_reg0[1] == 1'b1) Dq_dqm [15 : 8] = 8'b0;
             // Display result
             Dq_reg [15 : 0] = #tAC Dq_dqm [15 : 0];
             if (Dqm_reg0 == 2'b11) begin
@@ -950,16 +946,16 @@ module MT48LC8M16A2 #(parameter Debug=0) (dq, addr, ba, clk, cke, csb, rasb, cas
         $width    (negedge clk,           tCL);
         $period   (negedge clk,           tCK);
         $period   (posedge clk,           tCK);
-        $setuphold(posedge clk,    cke,   tCKS, tCKH);
-        $setuphold(posedge clk,    csb,  tCMS, tCMH);
-        $setuphold(posedge clk,    casb, tCMS, tCMH);
-        $setuphold(posedge clk,    rasb, tCMS, tCMH);
-        $setuphold(posedge clk,    web,  tCMS, tCMH);
-        $setuphold(posedge clk,    addr,  tAS,  tAH);
-        $setuphold(posedge clk,    ba,    tAS,  tAH);
-        $setuphold(posedge clk,    dqm,   tCMS, tCMH);
-        $setuphold(posedge Dq_chk, dq,    tDS,  tDH);
+        $setuphold(posedge clk,    part_if.cke,   tCKS, tCKH);
+        $setuphold(posedge clk,    part_if.cs,  tCMS, tCMH);
+        $setuphold(posedge clk,    part_if.cas, tCMS, tCMH);
+        $setuphold(posedge clk,    part_if.ras, tCMS, tCMH);
+        $setuphold(posedge clk,    part_if.we,  tCMS, tCMH);
+        $setuphold(posedge clk,    part_if.addr,  tAS,  tAH);
+        $setuphold(posedge clk,    part_if.ba,    tAS,  tAH);
+        $setuphold(posedge clk,    part_if.dqm,   tCMS, tCMH);
+        // $setuphold(posedge Dq_chk, dq,    tDS,  tDH);
+        $setuphold(posedge Dq_chk, part_if.write_data,    tDS,  tDH);
     endspecify
  
 endmodule
- 

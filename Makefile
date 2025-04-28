@@ -6,17 +6,19 @@ VIEWER := gtkwave
 SIMCOMPFLAGS := -g2012
 SIMFLAGS := 
 
-TB = sdram_core_tb
+TB = sdram_dual_tb2
 
 SRCS = hdl/sdram_core_32bit.sv
+SRCS += hdl/sdram_if.sv
 SRCS += hdl/sdram_arb.v
-MODELSRC = models/MT48LC8M16A2_dualbus.v
+MODELSRC = models/MT48LC8M16A2.v
 TBSRCS = tb/$(TB).sv
 
 TEST_OBJ = obj_dir/V$(TB)
+VCD = $(TB).vcd
 
 $(TEST_OBJ): $(SRCS) $(MODELSRC) $(TBSRCS)
-	verilator --binary -j 0 --top $(TB) $^
+	verilator --binary -j 0 --trace --top $(TB) $^
 
 all: test
 

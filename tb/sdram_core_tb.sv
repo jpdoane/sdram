@@ -2,25 +2,15 @@
 
 module sdram_core_tb;
 
+parameter DEBUG_SDRAM=0;
+
 parameter CLK_PERIOD=20.0;
 parameter HALF_CLK_PERIOD=CLK_PERIOD/2;
 parameter QTR_CLK_PERIOD=CLK_PERIOD/4;
-
 parameter ADDR_DEPTH=32;
 parameter DATA_DEPTH=32;
 
-parameter DEBUG_SDRAM=0;
-
 logic clk, rst;
-
-sdram_part_if part_if(clk);
-sdram_core_if core_if(clk);
-
-// logic [DATA_DEPTH-1:0] data_rd;
-// logic [DATA_DEPTH-1:0] data_wr;
-// logic [ADDR_DEPTH-1:0] addr;
-// logic rd;
-// logic [3:0] wr;
 
 initial
  begin
@@ -43,6 +33,12 @@ always begin
     clk = ~clk;
 end
 
+// clock ram with 90deg lag
+wire #QTR_CLK_PERIOD sdram_clk = clk; 
+
+sdram_core_if core_if(clk);
+sdram_part_if part_if(sdram_clk);
+
 always begin
     repeat(10) begin 
     core_if.write_data <= 0;
@@ -51,7 +47,7 @@ always begin
     core_if.rd <= 0;
     @(posedge clk);
 
-    core_if.addr <= $urandom%((2**32)-1);
+    core_if.addr <= $urandom;
     @(posedge clk);
 
     // write
@@ -77,69 +73,16 @@ always begin
     $finish;
 end
 
-// logic [15:0] sdram_dq;
-// logic [15:0] sdram_din;
-// logic [15:0] sdram_dout;
-// logic sdram_dout_en;
-// logic [12:0] sdram_a;
-// logic [1:0] sdram_bs;
-// logic sdram_cs_n;
-// logic sdram_ras_n;
-// logic sdram_cas_n;
-// logic sdram_we_n;
-// logic sdram_udqm;
-// logic sdram_ldqm;
-// logic sdram_cke;
-// logic [1:0] sdram_dqm;
-// assign {sdram_udqm, sdram_ldqm} = sdram_dqm;
-
-// logic accept, ack, err;
-
-
 sdram_core_32bit
 #(.SDRAM_READ_LATENCY(2))
 u_sdram_core(
-.clk_i                  (clk),
-.rst_i                  (rst),
-.core_if                (core_if.sub),
-.part_if                (part_if.sub)
-// .inport_len_i           (),
-// .inport_addr_i          (addr),
-// .inport_write_data_i    (data_wr),
-// .inport_accept_o        (accept),
-// .inport_ack_o           (ack),
-// .inport_error_o         (err),
-// .inport_read_data_o     (data_rd),
-
-// .sdram_data_input_i     (sdram_din),
-// .sdram_clk_o            (),
-// .sdram_cke_o            (sdram_cke),
-// .sdram_cs_o             (sdram_cs_n),
-// .sdram_ras_o            (sdram_ras_n),
-// .sdram_cas_o            (sdram_cas_n),
-// .sdram_we_o             (sdram_we_n),
-// .sdram_dqm_o            (sdram_dqm),
-// .sdram_addr_o           (sdram_a),
-// .sdram_ba_o             (sdram_bs),
-// .sdram_data_output_o    (sdram_dout),
-// .sdram_data_out_en_o    (sdram_dout_en)
+    .clk                    (clk),
+    .rst                    (rst),
+    .core_if                (core_if.sub),
+    .part_if                (part_if.sub)
 );
 
-wire sdram_clk;
-assign #QTR_CLK_PERIOD sdram_clk = clk; // clock ram with 90deg lag
-
-MT48LC8M16A2_dualbus #(.Debug(DEBUG_SDRAM)) u_sdram_model(
-    .data_rd    (part_if.read_data),
-    .data_wr    (part_if.write_data),
-    .addr       (part_if.addr),
-    .ba         (part_if.ba),
-    .clk        (sdram_clk),
-    .cke        (part_if.cke),
-    .csb        (part_if.cs),
-    .rasb       (part_if.ras),
-    .casb       (part_if.cas),
-    .web        (part_if.we),
-    .dqm        (part_if.dqm)
-    );
+MT48LC8M16A2 #(.Debug(DEBUG_SDRAM))
+u_sdram_model(part_if.man);
 
 endmodule
