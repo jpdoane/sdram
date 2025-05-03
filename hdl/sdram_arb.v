@@ -12,9 +12,9 @@ module sdram_arb
 
 
 // which port has active request (portA has priority on tie)
-logic requestingA;
-logic requestingB;
-wire reqA = (portA_if.rd | (portA_if.wr != 0)) & !requestingB;
+logic usingA;
+logic usingB;
+wire reqA = (portA_if.rd | (portA_if.wr != 0)) & !usingB;
 wire reqB = (portB_if.rd | (portB_if.wr != 0)) & !reqA;
 
 // which port is currently using core
@@ -23,19 +23,17 @@ logic acceptB;
 
 always_ff @ (posedge clk)
 if (rst) begin
-    requestingA <= 0;
-    requestingB <= 0;
+    usingA <= 0;
+    usingB <= 0;
     acceptA <= 0;
     acceptB <= 0;
 end else begin
-    requestingA <= reqA;
-    requestingB <= reqB;
-    if (core_if.ack | core_if.error) begin
-        acceptA <= 0;
-        acceptB <= 0;
+    if (core_if.accept | core_if.error) begin
+        usingA <= 0;
+        usingB <= 0;
     end
-    if (reqA) acceptA <= core_if.accept;
-    else if (reqB) acceptB <= core_if.accept;
+    usingA <= reqA;
+    usingB <= reqB;
 end
 
 // port -> core signals are assigned immediately on request
@@ -46,8 +44,8 @@ always_comb begin
     core_if.addr = '0;
     core_if.write_data = '0;
 
-    portA_if.accept = 0;
-    portB_if.accept = 0;
+    // portA_if.accept = 0;
+    // portB_if.accept = 0;
 
     if (reqA) begin
         core_if.wr = portA_if.wr;
@@ -55,37 +53,37 @@ always_comb begin
         core_if.len = portA_if.len;
         core_if.addr = portA_if.addr;
         core_if.write_data = portA_if.write_data;
-
-        portA_if.accept = core_if.accept;
-    end else if (reqB)  begin
+    end
+    if (reqB)  begin
         core_if.wr = portB_if.wr;
         core_if.rd = portB_if.rd;
         core_if.len = portB_if.len;
         core_if.addr = portB_if.addr;
         core_if.write_data = portB_if.write_data;
 
-        portB_if.accept = core_if.accept;
+        // portB_if.accept = core_if.accept;
     end
 end
 
 // core -> port signals are assigned through completion of transaction
 always_comb begin
-    // portA_if.accept = 0;
+    portA_if.accept = 0;
     portA_if.ack = 0;
     portA_if.error = 0;
     portA_if.read_data = '0;
 
-    // portB_if.accept = 0;
+    portB_if.accept = 0;
     portB_if.ack = 0;
     portB_if.error = 0;
     portB_if.read_data = '0;
-    if (acceptA) begin
-        // portA_if.accept = core_if.accept;
+    if (usingA) begin
+        portA_if.accept = core_if.accept;
         portA_if.ack = core_if.ack;
         portA_if.error = core_if.error;
         portA_if.read_data = core_if.read_data;
-    end else if (acceptB)  begin
-        // portB_if.accept = core_if.accept;
+    end
+    if (usingB)  begin
+        portB_if.accept = core_if.accept;
         portB_if.ack = core_if.ack;
         portB_if.error = core_if.error;
         portB_if.read_data = core_if.read_data;

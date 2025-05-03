@@ -147,7 +147,7 @@ u_sdram_model(part_if.man);
 // want to see port A get priority for intermittant access
 logic [31:0] dataA[0:3];
 logic [31:0] addrA[0:3];
-localparam WAIT_CYCLES_A = 40;
+localparam WAIT_CYCLES_A = 0;
 int max_latency_a = 0;
 int max_latency_b = 0;
 int latency_a = 0;
@@ -157,7 +157,7 @@ int error_b = 0;
 always begin
     #110000 // startup delay
     while(rst) @(posedge clk);
-    repeat(20) begin
+    repeat(400) begin
         foreach(addrA[i]) begin
             addrA[i] = $urandom;
             dataA[i] = $urandom;

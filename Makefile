@@ -17,13 +17,18 @@ TBSRCS = tb/$(TB).sv
 TEST_OBJ = obj_dir/V$(TB)
 VCD = $(TB).vcd
 
+VERILATOR_FLAGS = --binary -j 0
+VERILATOR_FLAGS += --trace
+
+VERILATOR_RUN_FLAGS = +verilator+seed+$(shell bash -c 'echo $$RANDOM')
+
 $(TEST_OBJ): $(SRCS) $(MODELSRC) $(TBSRCS)
-	verilator --binary -j 0 --trace --top $(TB) $^
+	verilator $(VERILATOR_FLAGS) --top $(TB) $^
 
 all: test
 
 test: $(TEST_OBJ)
-	$(TEST_OBJ)
+	$(TEST_OBJ) $(VERILATOR_RUN_FLAGS)
 
 view: $(VCD)
 	gtkwave $(VCD) &
