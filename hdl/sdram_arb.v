@@ -40,7 +40,6 @@ end
 always_comb begin
     core_if.wr = '0;
     core_if.rd = 0;
-    core_if.len = '0;
     core_if.addr = '0;
     core_if.write_data = '0;
 
@@ -50,14 +49,12 @@ always_comb begin
     if (reqA) begin
         core_if.wr = portA_if.wr;
         core_if.rd = portA_if.rd;
-        core_if.len = portA_if.len;
         core_if.addr = portA_if.addr;
         core_if.write_data = portA_if.write_data;
     end
     if (reqB)  begin
         core_if.wr = portB_if.wr;
         core_if.rd = portB_if.rd;
-        core_if.len = portB_if.len;
         core_if.addr = portB_if.addr;
         core_if.write_data = portB_if.write_data;
 

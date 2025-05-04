@@ -43,11 +43,27 @@
 
 `timescale 1ns / 100ps
  
-module MT48LC8M16A2 #(parameter Debug=0)
+module MT48LC8M16A2
+#(
+    parameter Debug=0,
+    // Timing Parameters for -75 (PC133) and CAS Latency = 2
+    parameter tAC  =   6.0,
+    parameter tHZ  =   7.0,
+    parameter tOH  =   2.7,
+    parameter tMRD =   2.0,     // 2 clk Cycles
+    parameter tRAS =  44.0,
+    parameter tRC  =  66.0,
+    parameter tRCD =  20.0,
+    parameter tRP  =  20.0,
+    parameter tRRD =  15.0,
+    parameter tWRa =   7.5,     // A2 Version - Auto precharge mode only (1 clk + 7.5 ns)
+    parameter tWRp =  15.0     // A2 Version - Precharge mode only (15 ns)
+    
+)
 ( sdram_part_if.sub part_if );
 
     wire clk = part_if.clk;
-    localparam BANK_DEPTH = 2 ** (part_if.ADDR_WIDTH+part_if.COL_WIDTH);                                  // 2 Meg
+    localparam BANK_DEPTH = 2 ** (part_if.ROW_WIDTH+part_if.COL_WIDTH);                                  // 2 Meg
  
 
     reg       [part_if.DATA_WIDTH - 1 : 0] Bank0 [0 : BANK_DEPTH-1];
@@ -59,9 +75,9 @@ module MT48LC8M16A2 #(parameter Debug=0)
     reg        [part_if.COL_WIDTH - 1 : 0] Col_addr [0 : 3];                 // Column Address Pipeline
     reg                   [3 : 0] Command [0 : 3];                  // Command Operation Pipeline
     reg                   [1 : 0] Dqm_reg0, Dqm_reg1;               // DQM Operation Pipeline
-    reg       [part_if.ADDR_WIDTH - 1 : 0] B0_row_addr, B1_row_addr, B2_row_addr, B3_row_addr;
+    reg       [part_if.ROW_WIDTH - 1 : 0] B0_row_addr, B1_row_addr, B2_row_addr, B3_row_addr;
  
-    reg       [part_if.ADDR_WIDTH - 1 : 0] Mode_reg;
+    reg       [part_if.ROW_WIDTH - 1 : 0] Mode_reg;
     reg       [part_if.DATA_WIDTH - 1 : 0] Dq_reg, Dq_dqm;
     reg        [part_if.COL_WIDTH - 1 : 0] Col_temp, Burst_counter;
  
@@ -81,7 +97,7 @@ module MT48LC8M16A2 #(parameter Debug=0)
     reg                           Data_out_enable;
  
     reg                   [1 : 0] Bank, Previous_bank;
-    reg       [part_if.ADDR_WIDTH - 1 : 0] Row;
+    reg       [part_if.ROW_WIDTH - 1 : 0] Row;
     reg        [part_if.COL_WIDTH - 1 : 0] Col, Col_brst;
  
     // Internal system clock
@@ -126,20 +142,7 @@ module MT48LC8M16A2 #(parameter Debug=0)
     `define   A_REF     7
     `define   BST       8
     `define   LMR       9
- 
-    // Timing Parameters for -75 (PC133) and CAS Latency = 2
-    parameter tAC  =   6.0;
-    parameter tHZ  =   7.0;
-    parameter tOH  =   2.7;
-    parameter tMRD =   2.0;     // 2 clk Cycles
-    parameter tRAS =  44.0;
-    parameter tRC  =  66.0;
-    parameter tRCD =  20.0;
-    parameter tRP  =  20.0;
-    parameter tRRD =  15.0;
-    parameter tWRa =   7.5;     // A2 Version - Auto precharge mode only (1 clk + 7.5 ns)
-    parameter tWRp =  15.0;     // A2 Version - Precharge mode only (15 ns)
- 
+  
     // Timing Check variable
     integer   MRD_chk;
     integer   WR_counter [0 : 3];
@@ -324,7 +327,7 @@ module MT48LC8M16A2 #(parameter Debug=0)
         if (Active_enable == 1'b1) begin
             if (part_if.ba == 2'b00 && Pc_b0 == 1'b1) begin
                 {Act_b0, Pc_b0} = 2'b10;
-                B0_row_addr = part_if.addr [part_if.ADDR_WIDTH - 1 : 0];
+                B0_row_addr = part_if.addr [part_if.ROW_WIDTH - 1 : 0];
                 RCD_chk0 = $time;
                 RAS_chk0 = $time;
                 if (Debug) $display ("at time %t ACT  : Bank = 0 Row = %d", $time, part_if.addr);
@@ -336,7 +339,7 @@ module MT48LC8M16A2 #(parameter Debug=0)
                 end
             end else if (part_if.ba == 2'b01 && Pc_b1 == 1'b1) begin
                 {Act_b1, Pc_b1} = 2'b10;
-                B1_row_addr = part_if.addr [part_if.ADDR_WIDTH - 1 : 0];
+                B1_row_addr = part_if.addr [part_if.ROW_WIDTH - 1 : 0];
                 RCD_chk1 = $time;
                 RAS_chk1 = $time;
                 if (Debug) $display ("at time %t ACT  : Bank = 1 Row = %d", $time, part_if.addr);
@@ -348,7 +351,7 @@ module MT48LC8M16A2 #(parameter Debug=0)
                 end
             end else if (part_if.ba == 2'b10 && Pc_b2 == 1'b1) begin
                 {Act_b2, Pc_b2} = 2'b10;
-                B2_row_addr = part_if.addr [part_if.ADDR_WIDTH - 1 : 0];
+                B2_row_addr = part_if.addr [part_if.ROW_WIDTH - 1 : 0];
                 RCD_chk2 = $time;
                 RAS_chk2 = $time;
                 if (Debug) $display ("at time %t ACT  : Bank = 2 Row = %d", $time, part_if.addr);
@@ -360,7 +363,7 @@ module MT48LC8M16A2 #(parameter Debug=0)
                 end
             end else if (part_if.ba == 2'b11 && Pc_b3 == 1'b1) begin
                 {Act_b3, Pc_b3} = 2'b10;
-                B3_row_addr = part_if.addr [part_if.ADDR_WIDTH - 1 : 0];
+                B3_row_addr = part_if.addr [part_if.ROW_WIDTH - 1 : 0];
                 RCD_chk3 = $time;
                 RAS_chk3 = $time;
                 if (Debug) $display ("at time %t ACT  : Bank = 3 Row = %d", $time, part_if.addr);

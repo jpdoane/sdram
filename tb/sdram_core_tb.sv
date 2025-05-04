@@ -2,87 +2,151 @@
 
 module sdram_core_tb;
 
-parameter DEBUG_SDRAM=0;
+    logic clk, rst;
 
-parameter CLK_PERIOD=20.0;
-parameter HALF_CLK_PERIOD=CLK_PERIOD/2;
-parameter QTR_CLK_PERIOD=CLK_PERIOD/4;
-parameter ADDR_DEPTH=32;
-parameter DATA_DEPTH=32;
+    localparam int DATA_WIDTH    = 8;
 
-logic clk, rst;
+    localparam real SDRAM_MHZ    = 50;
+    localparam int ADDR_WIDTH    = 32;
+    localparam int SDADDR_WIDTH  = 24;
+    localparam int COL_WIDTH     = 9;
+    localparam int CAS_LATENCY   = 2;
 
-initial
- begin
-    $dumpfile("sdram_core_tb.vcd");
-    $dumpvars(0,sdram_core_tb);
-    $dumpoff;
-    #118000; // startupo delay
-    $dumpon;
- end
+    parameter DEBUG_SDRAM         = 0;
 
-initial begin
-    clk = 0;
-    rst = 1;
-    repeat(10) @(posedge clk);
-    rst = 0;
-end
+    localparam real tRC_NS        = 60.0;   // min time in ns between row activations (same bank)
+    localparam real tRAS_NS       = 42.0;   // min time in ns from row activation to precharge (same bank)
+    localparam real tRCD_NS       = 15.0;   // min time in ns from row activation to read/write
+    localparam real tRP_NS        = 15.0;   // min time in ns from precharge to refresh/activation (same bank)
+    localparam real tXSR_NS       = 72.0;   // min time in ns from self-refresh exit to activation
+    localparam real tREF_NS       = 64e6;   // max time in ns to perform all 8k refresh cycles
+    localparam int DELAY_RRD     = 2;       // min clocks between row activations (different bank)
+    localparam int DELAY_WR      = 2;       // min clocks write recovery time
+    localparam int DELAY_RSC     = 2;       // min clocks for mode register reset
 
-always begin
-    #HALF_CLK_PERIOD;
-    clk = ~clk;
-end
-
-// clock ram with 90deg lag
-wire #QTR_CLK_PERIOD sdram_clk = clk; 
-
-sdram_core_if core_if(clk);
-sdram_part_if part_if(sdram_clk);
-
-always begin
-    repeat(10) begin 
-    core_if.write_data <= 0;
-    core_if.addr <= 0;
-    core_if.wr <= 0;
-    core_if.rd <= 0;
-    @(posedge clk);
-
-    core_if.addr <= $urandom;
-    @(posedge clk);
-
-    // write
-    core_if.write_data <= core_if.addr;
-    core_if.wr <= '1;
-    @(posedge clk);
-    $display("at time %t: Writing 0x%0x to 0x%0x", $time, core_if.write_data, core_if.addr);
-    while(~core_if.accept) @(posedge clk); // delay if controller is not ready
-    core_if.wr <= 0;
-    core_if.write_data <= 0;
-
-    // read
-    core_if.rd <= 1;
-    @(posedge clk);
-    while(~core_if.accept) @(posedge clk); // delay if controller is not ready 
-    core_if.rd <= 0;
-    while(~core_if.ack) @(posedge clk); // delay until result is valid 
-
-    if(core_if.read_data == core_if.addr) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
-    else $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
-
+    parameter real CLK_PERIOD=1000/SDRAM_MHZ;
+    parameter real HALF_CLK_PERIOD=CLK_PERIOD/2;
+    parameter real QTR_CLK_PERIOD=CLK_PERIOD/4;
+    
+    initial
+     begin
+        $dumpfile("sdram_8bit_tb2.vcd");
+        $dumpvars(0,sdram_8bit_tb2);
+        $dumpon;
+        // #2500;
+        // $finish;
+     end
+    
+    initial begin
+        clk = 0;
+        rst = 1;
+        repeat(10) @(posedge clk);
+        rst = 0;
     end
-    $finish;
-end
+    
+    always begin
+        #HALF_CLK_PERIOD;
+        clk = ~clk;
+    end
+    
+    // clock ram with 90deg lag
+    wire #QTR_CLK_PERIOD sdram_clk = clk; 
 
-sdram_core_32bit
-#(.SDRAM_READ_LATENCY(2))
-u_sdram_core(
-    .clk                    (clk),
-    .rst                    (rst),
-    .core_if                (core_if.sub),
-    .part_if                (part_if.sub)
-);
+    sdram_core_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) core_if(clk);
+    sdram_part_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) part_if(sdram_clk);
 
-MT48LC8M16A2 #(.Debug(DEBUG_SDRAM))
-u_sdram_model(part_if.man);
+    logic [7:0] write_data;
+    logic [ADDR_WIDTH-1:0] addr;
+    logic wr;
+    logic rd;
+    logic rdy;
+    logic val;
+    logic [7:0] read_data;
+    
+    always begin
+        repeat(10) begin 
+        core_if.write_data <= 0;
+        core_if.addr <= 0;
+        core_if.wr <= 0;
+        core_if.rd <= 0;
+        @(posedge clk);
+    
+        core_if.addr <= ADDR_WIDTH'($urandom);
+        @(posedge clk);
+    
+        // write
+        core_if.write_data <= core_if.addr[DATA_WIDTH-1:0];
+        core_if.wr <= '1;
+        @(posedge clk);
+        $display("at time %t: Writing 0x%0x to 0x%0x", $time, core_if.write_data, core_if.addr);
+        while(~core_if.accept) @(posedge clk); // delay if controller is not ready
+        core_if.wr <= 0;
+        core_if.write_data <= 0;
+        
+    // read
+        core_if.rd <= 1;
+        @(posedge clk);
+        while(~core_if.accept) @(posedge clk); // delay if controller is not ready 
+        core_if.rd <= 0;
+        while(~core_if.ack) @(posedge clk); // delay until result is valid 
+    
+        if(core_if.read_data == core_if.addr[DATA_WIDTH-1:0]) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
+        else $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
+    
+        end
+        $finish;
+    end
+    
 
+    sdram_core
+    #(
+        .SDRAM_MHZ      (50),
+        .CAS_LATENCY    (2),
+        .tRC_NS         (tRC_NS),
+        .tRAS_NS        (tRAS_NS),
+        .tRCD_NS        (tRCD_NS),
+        .tRP_NS         (tRP_NS),
+        .tXSR_NS        (tXSR_NS),
+        .tREF_NS        (tREF_NS),
+        .DELAY_WR       (DELAY_WR),
+        .DELAY_RRD      (DELAY_RRD),
+        .DELAY_RSC      (DELAY_RSC),        
+        .STARTUP_US     (1)
+    )
+    u_sdram_controller(
+        .clk      (clk      ),
+        .rst      (rst      ),
+        .core_if  (core_if.man),
+        .part_if  (part_if.sub)
+        // .data_wr  (write_data  ),
+        // .addr_in  (addr  ),
+        // .wr       (wr       ),
+        // .rd       (rd       ),
+        // .rdy      (rdy      ),
+        // .val      (val      ),
+        // .data_rd (read_data ),
+        // .sd_a     (part_if.man.addr     ),
+        // .sd_bs    (part_if.man.ba    ),
+        // .sd_cs_n  (part_if.man.cs  ),
+        // .sd_ras_n (part_if.man.ras ),
+        // .sd_cas_n (part_if.man.cas ),
+        // .sd_we_n  (part_if.man.we  ),
+        // .sd_dqm  (part_if.man.dqm  ),
+        // .sd_cke   (part_if.man.cke   ),
+        // .sd_din    (part_if.man.read_data    ),
+        // .sd_dout    (part_if.man.write_data    ),
+        // .sd_dout_en    (part_if.man.wr_en    )
+    );
+    
+    MT48LC8M16A2 #(
+    .Debug(DEBUG_SDRAM),
+    .tMRD   (DELAY_RSC*CLK_PERIOD),
+    .tRAS   (tRAS_NS),
+    .tRC    (tRC_NS),
+    .tRCD   (tRCD_NS),
+    .tRP    (tRP_NS),
+    .tRRD   (DELAY_RRD*CLK_PERIOD)
+    )
+    u_sdram_model(part_if.man);
+    
 endmodule

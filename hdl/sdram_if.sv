@@ -1,12 +1,12 @@
 interface sdram_core_if
 #(
     parameter ADDR_WIDTH=32,
-    parameter DATA_WIDTH=32
+    parameter DATA_WIDTH=32,
+    parameter WORD_LEN=$clog2(DATA_WIDTH)-2
 )
 (   input          clk );
-    logic  [  3:0]  wr;
+    logic  [ WORD_LEN-1:0]  wr;
     logic           rd;
-    logic  [  7:0]  len;
     logic  [ ADDR_WIDTH-1:0]  addr;
     logic  [ DATA_WIDTH-1:0]  write_data;
     logic           accept;
@@ -16,9 +16,9 @@ interface sdram_core_if
 
 
     modport man (input  accept, ack, error, read_data, clk,
-                    output wr, rd, len, addr, write_data);
+                    output wr, rd, addr, write_data);
 
-    modport sub (input wr, rd, len, addr, write_data, clk,
+    modport sub (input wr, rd, addr, write_data, clk,
                  output accept, ack, error, read_data);
 
     // This throws mutliple driver error...
@@ -59,9 +59,10 @@ endinterface
 
 interface sdram_part_if
 #(
-    parameter ADDR_WIDTH=13,
+    parameter ADDR_WIDTH=24,
     parameter COL_WIDTH=9,
-    parameter DATA_WIDTH=16
+    parameter DATA_WIDTH=16,
+    parameter ROW_WIDTH=ADDR_WIDTH-COL_WIDTH-3
 )
 (   input                  clk );
 
@@ -71,7 +72,7 @@ interface sdram_part_if
     logic                  cas;
     logic                  we;
     logic [ 1:0]           dqm;
-    logic [ADDR_WIDTH-1:0] addr;
+    logic [ROW_WIDTH-1:0] addr;
     logic [ 1:0]           ba;
     logic [DATA_WIDTH-1:0] read_data;
     logic [DATA_WIDTH-1:0] write_data;

@@ -6,9 +6,9 @@ VIEWER := gtkwave
 SIMCOMPFLAGS := -g2012
 SIMFLAGS := 
 
-TB = sdram_dual_tb2
+TB = sdram_core_tb
 
-SRCS = hdl/sdram_core_32bit.sv
+SRCS = hdl/sdram_core.sv
 SRCS += hdl/sdram_if.sv
 SRCS += hdl/sdram_arb.v
 MODELSRC = models/MT48LC8M16A2.v
