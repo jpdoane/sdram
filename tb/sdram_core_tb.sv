@@ -4,7 +4,7 @@ module sdram_core_tb;
 
     logic clk, rst;
 
-    localparam int DATA_WIDTH    = 8;
+    localparam int DATA_WIDTH    = 16;
 
     localparam real SDRAM_MHZ    = 50;
     localparam int ADDR_WIDTH    = 32;
@@ -30,10 +30,10 @@ module sdram_core_tb;
     
     initial
      begin
-        $dumpfile("sdram_8bit_tb2.vcd");
-        $dumpvars(0,sdram_8bit_tb2);
+        $dumpfile("sdram_core_tb.vcd");
+        $dumpvars(0,sdram_core_tb);
         $dumpon;
-        // #2500;
+        // #2600;
         // $finish;
      end
     
@@ -54,16 +54,12 @@ module sdram_core_tb;
 
     sdram_core_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) core_if(clk);
     sdram_part_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) part_if(sdram_clk);
-
-    logic [7:0] write_data;
-    logic [ADDR_WIDTH-1:0] addr;
-    logic wr;
-    logic rd;
-    logic rdy;
-    logic val;
-    logic [7:0] read_data;
     
+    localparam [ADDR_WIDTH-1:0] ADDRMASK = '1 << ($clog2(DATA_WIDTH)-3);
+    int randint;
     always begin
+        while(rst) @(posedge clk);
+
         repeat(10) begin 
         core_if.write_data <= 0;
         core_if.addr <= 0;
@@ -71,16 +67,17 @@ module sdram_core_tb;
         core_if.rd <= 0;
         @(posedge clk);
     
-        core_if.addr <= ADDR_WIDTH'($urandom);
+        randint = $urandom();
+        core_if.addr <= ADDR_WIDTH'(randint & ADDRMASK);
         @(posedge clk);
     
         // write
-        core_if.write_data <= core_if.addr[DATA_WIDTH-1:0];
+        core_if.write_data <= DATA_WIDTH'(randint);
         core_if.wr <= '1;
         @(posedge clk);
-        $display("at time %t: Writing 0x%0x to 0x%0x", $time, core_if.write_data, core_if.addr);
         while(~core_if.accept) @(posedge clk); // delay if controller is not ready
-        core_if.wr <= 0;
+        $display("at time %t Wrote 0x%0x to 0x%0x", $time, core_if.addr[DATA_WIDTH-1:0], core_if.addr);
+        core_if.wr <= '0;
         core_if.write_data <= 0;
         
     // read
@@ -90,8 +87,8 @@ module sdram_core_tb;
         core_if.rd <= 0;
         while(~core_if.ack) @(posedge clk); // delay until result is valid 
     
-        if(core_if.read_data == core_if.addr[DATA_WIDTH-1:0]) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
-        else $display("at time %t: ERROR: Read incorrect value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
+        if(core_if.read_data == DATA_WIDTH'(randint)) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
+        else $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
     
         end
         $finish;

@@ -1,8 +1,8 @@
 interface sdram_core_if
 #(
-    parameter ADDR_WIDTH=32,
-    parameter DATA_WIDTH=32,
-    parameter WORD_LEN=$clog2(DATA_WIDTH)-2
+    parameter int ADDR_WIDTH=32,
+    parameter int DATA_WIDTH=32,
+    parameter int WORD_LEN=DATA_WIDTH/8
 )
 (   input          clk );
     logic  [ WORD_LEN-1:0]  wr;
@@ -61,21 +61,20 @@ interface sdram_part_if
 #(
     parameter ADDR_WIDTH=24,
     parameter COL_WIDTH=9,
-    parameter DATA_WIDTH=16,
     parameter ROW_WIDTH=ADDR_WIDTH-COL_WIDTH-3
 )
 (   input                  clk );
 
-    logic                  cke;
-    logic                  cs;
-    logic                  ras;
-    logic                  cas;
-    logic                  we;
-    logic [ 1:0]           dqm;
-    logic [ROW_WIDTH-1:0] addr;
-    logic [ 1:0]           ba;
-    logic [DATA_WIDTH-1:0] read_data;
-    logic [DATA_WIDTH-1:0] write_data;
+    logic                   cke;
+    logic                   cs;
+    logic                   ras;
+    logic                   cas;
+    logic                   we;
+    logic [ 1:0]            dqm;
+    logic [ROW_WIDTH-1:0]   addr;
+    logic [ 1:0]            ba;
+    logic [15:0]            read_data;
+    logic [15:0]            write_data;
     logic                   wr_en;
 
     modport man (input read_data, clk,

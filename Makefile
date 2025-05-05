@@ -35,3 +35,4 @@ view: $(VCD)
 
 clean:
 	@rm -rf obj_dir
+	@rm *.vcd	

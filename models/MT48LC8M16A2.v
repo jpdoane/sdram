@@ -66,10 +66,10 @@ module MT48LC8M16A2
     localparam BANK_DEPTH = 2 ** (part_if.ROW_WIDTH+part_if.COL_WIDTH);                                  // 2 Meg
  
 
-    reg       [part_if.DATA_WIDTH - 1 : 0] Bank0 [0 : BANK_DEPTH-1];
-    reg       [part_if.DATA_WIDTH - 1 : 0] Bank1 [0 : BANK_DEPTH-1];
-    reg       [part_if.DATA_WIDTH - 1 : 0] Bank2 [0 : BANK_DEPTH-1];
-    reg       [part_if.DATA_WIDTH - 1 : 0] Bank3 [0 : BANK_DEPTH-1];
+    reg       [15 : 0] Bank0 [0 : BANK_DEPTH-1];
+    reg       [15 : 0] Bank1 [0 : BANK_DEPTH-1];
+    reg       [15 : 0] Bank2 [0 : BANK_DEPTH-1];
+    reg       [15 : 0] Bank3 [0 : BANK_DEPTH-1];
  
     reg                   [1 : 0] Bank_addr [0 : 3];                // Bank Address Pipeline
     reg        [part_if.COL_WIDTH - 1 : 0] Col_addr [0 : 3];                 // Column Address Pipeline
@@ -78,7 +78,7 @@ module MT48LC8M16A2
     reg       [part_if.ROW_WIDTH - 1 : 0] B0_row_addr, B1_row_addr, B2_row_addr, B3_row_addr;
  
     reg       [part_if.ROW_WIDTH - 1 : 0] Mode_reg;
-    reg       [part_if.DATA_WIDTH - 1 : 0] Dq_reg, Dq_dqm;
+    reg       [15 : 0] Dq_reg, Dq_dqm;
     reg        [part_if.COL_WIDTH - 1 : 0] Col_temp, Burst_counter;
  
     reg                           Act_b0, Act_b1, Act_b2, Act_b3;   // Bank Activate
@@ -155,7 +155,7 @@ module MT48LC8M16A2
     initial begin
     //    Debug = 1'b0;
  
-        Dq_reg = {part_if.DATA_WIDTH{1'b0}};
+        Dq_reg = '0;
         {Data_in_enable, Data_out_enable} = 0;
         {Act_b0, Act_b1, Act_b2, Act_b3} = 4'b0000;
         {Pc_b0, Pc_b1, Pc_b2, Pc_b3} = 4'b0000;
@@ -705,7 +705,7 @@ module MT48LC8M16A2
         end
  
         if (Data_out_enable == 1'b0) begin
-            Dq_reg <= #tOH {part_if.DATA_WIDTH{1'b0}};
+            Dq_reg <= #tOH '0;
         end
  
         // Detect Read or Write command
