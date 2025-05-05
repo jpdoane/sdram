@@ -1,60 +1,38 @@
 PROJ := sdram
-# PIN_DEF := hx8kboard.pcf
-# DEVICE := hx8k
-
 SIMCOMPILER := iverilog
 SIMULATOR := vvp
 VIEWER := gtkwave
 
-TOPMODULE := sdram_nes_tb
-
-# SYNTHFLAGS := -p synth_ice40 -top $(TOPMODULE)
-# PNRFLAGS := -d $(subst hx,,$(subst lp,,$(DEVICE)))
-SIMCOMPFLAGS := -g2012 -pfileline=1
+SIMCOMPFLAGS := -g2012
 SIMFLAGS := 
 
-TB = sdram_multi_tb
+TB = sdram_core_tb
 
-SRCS = $(wildcard hdl/*.sv)
+SRCS = hdl/sdram_core.sv
+SRCS += hdl/sdram_if.sv
+SRCS += hdl/sdram_arb.v
 MODELSRC = models/MT48LC8M16A2.v
 TBSRCS = tb/$(TB).sv
-VVP = sim/$(TB).vvp
-VCD = sim/$(TB).vcd
 
-# BINS := $(PROJ).bin
-# RPTS := $(patsubst %.bin,%.rpt,$(BINS))
-# BLIFS := $(patsubst %.bin,%.blif,$(BINS))
-# ASCS := $(patsubst %.bin,%.asc,$(BINS))
+TEST_OBJ = obj_dir/V$(TB)
+VCD = $(TB).vcd
+
+VERILATOR_FLAGS = --binary -j 0
+VERILATOR_FLAGS += --trace
+
+# VERILATOR_RUN_FLAGS = +verilator+seed+$(shell bash -c 'echo $$RANDOM')
+
+$(TEST_OBJ): $(SRCS) $(MODELSRC) $(TBSRCS)
+	verilator $(VERILATOR_FLAGS) --top $(TB) $^
 
 all: test
 
-# timing: $(RPTS)
-
-# bitstream: $(BINS)
-
-test: $(VCD)
+test: $(TEST_OBJ)
+	$(TEST_OBJ) $(VERILATOR_RUN_FLAGS)
 
 view: $(VCD)
 	gtkwave $(VCD) &
 
-# $(BLIFS): %.blif: %.v $(MODSRCS)
-#         yosys '$(SYNTHFLAGS) -blif $@' $^
-
-# $(ASCS): %.asc: $(PIN_DEF) %.blif
-#         arachne-pnr $(PNRFLAGS) -o $@ -p $^
-
-# $(BINS): %.bin: %.asc
-#         icepack $< $@
-
-# $(RPTS): %.rpt: %.asc
-#         icetime -d $(DEVICE) -mtr $@ $<
-
-$(VVP): %.vvp: $(TBSRCS) $(SRCS) $(MODELSRC) 
-	$(SIMCOMPILER) $(SIMCOMPFLAGS) $^ -o $@
-
-$(VCD): $(VVP)
-	$(SIMULATOR) $(SIMFLAGS) $^
-	mv *.vcd sim
-
 clean:
-	@rm -f $(VVP) $(VCD) $(BLIFS) $(BINS) $(RPTS)
+	-@rm -rf obj_dir
+	-@rm *.vcd	
