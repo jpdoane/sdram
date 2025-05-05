@@ -20,7 +20,7 @@ VCD = $(TB).vcd
 VERILATOR_FLAGS = --binary -j 0
 VERILATOR_FLAGS += --trace
 
-VERILATOR_RUN_FLAGS = +verilator+seed+$(shell bash -c 'echo $$RANDOM')
+# VERILATOR_RUN_FLAGS = +verilator+seed+$(shell bash -c 'echo $$RANDOM')
 
 $(TEST_OBJ): $(SRCS) $(MODELSRC) $(TBSRCS)
 	verilator $(VERILATOR_FLAGS) --top $(TB) $^
@@ -34,5 +34,5 @@ view: $(VCD)
 	gtkwave $(VCD) &
 
 clean:
-	@rm -rf obj_dir
-	@rm *.vcd	
+	-@rm -rf obj_dir
+	-@rm *.vcd	

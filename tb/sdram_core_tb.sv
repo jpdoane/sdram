@@ -4,7 +4,7 @@ module sdram_core_tb;
 
     logic clk, rst;
 
-    localparam int DATA_WIDTH    = 16;
+    localparam int DATA_WIDTH    = 32;
 
     localparam real SDRAM_MHZ    = 50;
     localparam int ADDR_WIDTH    = 32;
@@ -56,7 +56,7 @@ module sdram_core_tb;
     sdram_part_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) part_if(sdram_clk);
     
     localparam [ADDR_WIDTH-1:0] ADDRMASK = '1 << ($clog2(DATA_WIDTH)-3);
-    int randint;
+    int randint, bytenum;
     always begin
         while(rst) @(posedge clk);
 
@@ -89,7 +89,27 @@ module sdram_core_tb;
     
         if(core_if.read_data == DATA_WIDTH'(randint)) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
         else $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
+
     
+        // // test byte select...
+        // // write
+        // core_if.write_data <= 32'hdeadbeef;
+        // bytenum = $urandom_range(0,3);
+        // core_if.wr <= 1'b1 << bytenum;
+        // @(posedge clk);
+        // while(~core_if.accept) @(posedge clk); // delay if controller is not ready
+        // $display("at time %t Wrote only byte %d of 0xdeadbeef to 0x%0x", $time, bytenum, core_if.addr[DATA_WIDTH-1:0], core_if.addr);
+        // core_if.wr <= '0;
+        // core_if.write_data <= 0;
+        
+        // // read
+        // core_if.rd <= 1;
+        // @(posedge clk);
+        // while(~core_if.accept) @(posedge clk); // delay if controller is not ready 
+        // core_if.rd <= 0;
+        // while(~core_if.ack) @(posedge clk); // delay until result is valid     
+        // $display("at time  %t: Read 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
+
         end
         $finish;
     end
