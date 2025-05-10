@@ -1,4 +1,4 @@
-interface sdram_core_if
+interface sdram_ctrl_if
 #(
     parameter int ADDR_WIDTH=32,
     parameter int DATA_WIDTH=32,
@@ -9,17 +9,17 @@ interface sdram_core_if
     logic           rd;
     logic  [ ADDR_WIDTH-1:0]  addr;
     logic  [ DATA_WIDTH-1:0]  write_data;
-    logic           accept;
-    logic           ack;
+    logic           rdy;
+    logic           valid;
     logic           error;
     logic [ DATA_WIDTH-1:0]   read_data;
 
 
-    modport man (input  accept, ack, error, read_data, clk,
+    modport man (input  rdy, valid, error, read_data, clk,
                     output wr, rd, addr, write_data);
 
     modport sub (input wr, rd, addr, write_data, clk,
-                 output accept, ack, error, read_data);
+                 output rdy, valid, error, read_data);
 
     // This throws mutliple driver error...
     // honestly not sure how tasks+interfaces are support to work...
@@ -51,13 +51,13 @@ interface sdram_core_if
     //     while(~accept) @(posedge clk); 
     //     rd <= 0;
     //     // hold until data is ready 
-    //     while(~ack) @(posedge clk); 
+    //     while(~valid) @(posedge clk); 
     //     data <= read_data;
     // endtask
     
 endinterface
 
-interface sdram_part_if
+interface sdram_dev_if
 #(
     parameter ADDR_WIDTH=24,
     parameter COL_WIDTH=9,
