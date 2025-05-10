@@ -75,22 +75,22 @@ module sdram_core_tb;
         core_if.write_data <= DATA_WIDTH'(randint);
         core_if.wr <= '1;
         @(posedge clk);
-        while(~core_if.accept) @(posedge clk); // delay if controller is not ready
+        while(~core_if.rdy) @(posedge clk); // delay until controller is not ready
         $display("at time %t Wrote 0x%0x to 0x%0x", $time, core_if.addr[DATA_WIDTH-1:0], core_if.addr);
         core_if.wr <= '0;
         core_if.write_data <= 0;
         
-    // read
+        // read
         core_if.rd <= 1;
         @(posedge clk);
-        while(~core_if.accept) @(posedge clk); // delay if controller is not ready 
+        while(~core_if.rdy) @(posedge clk); // delay until controller is not ready
         core_if.rd <= 0;
-        while(~core_if.ack) @(posedge clk); // delay until result is valid 
+        while(~core_if.valid) @(posedge clk); // delay until result is valid 
     
         if(core_if.read_data == DATA_WIDTH'(randint)) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
         else $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
 
-    
+
         // // test byte select...
         // // write
         // core_if.write_data <= 32'hdeadbeef;
@@ -107,7 +107,7 @@ module sdram_core_tb;
         // @(posedge clk);
         // while(~core_if.accept) @(posedge clk); // delay if controller is not ready 
         // core_if.rd <= 0;
-        // while(~core_if.ack) @(posedge clk); // delay until result is valid     
+        // while(~core_if.valid) @(posedge clk); // delay until result is valid     
         // $display("at time  %t: Read 0x%0x from 0x%0x", $time, core_if.read_data, core_if.addr);
 
         end
@@ -117,8 +117,8 @@ module sdram_core_tb;
 
     sdram_core
     #(
-        .SDRAM_MHZ      (50),
-        .CAS_LATENCY    (2),
+        .SDRAM_MHZ      (SDRAM_MHZ),
+        .CAS_LATENCY    (CAS_LATENCY),
         .tRC_NS         (tRC_NS),
         .tRAS_NS        (tRAS_NS),
         .tRCD_NS        (tRCD_NS),
@@ -135,24 +135,6 @@ module sdram_core_tb;
         .rst      (rst      ),
         .core_if  (core_if.man),
         .part_if  (part_if.sub)
-        // .data_wr  (write_data  ),
-        // .addr_in  (addr  ),
-        // .wr       (wr       ),
-        // .rd       (rd       ),
-        // .rdy      (rdy      ),
-        // .val      (val      ),
-        // .data_rd (read_data ),
-        // .sd_a     (part_if.man.addr     ),
-        // .sd_bs    (part_if.man.ba    ),
-        // .sd_cs_n  (part_if.man.cs  ),
-        // .sd_ras_n (part_if.man.ras ),
-        // .sd_cas_n (part_if.man.cas ),
-        // .sd_we_n  (part_if.man.we  ),
-        // .sd_dqm  (part_if.man.dqm  ),
-        // .sd_cke   (part_if.man.cke   ),
-        // .sd_din    (part_if.man.read_data    ),
-        // .sd_dout    (part_if.man.write_data    ),
-        // .sd_dout_en    (part_if.man.wr_en    )
     );
     
     MT48LC8M16A2 #(

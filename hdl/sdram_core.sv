@@ -66,7 +66,6 @@ localparam STATE_ACTIVATE   = 4'h5;
 localparam STATE_READ_CMD   = 4'h6;
 localparam STATE_READ       = 4'h7;
 localparam STATE_WRITE      = 4'h8;
-localparam STATE_ACK        = 4'h9;
 
 localparam SDMODE_BURST1 = 3'h0;
 localparam SDMODE_BURST2 = 3'h1;
@@ -90,19 +89,19 @@ localparam sdmode = ROW_WIDTH'({3'b0, CAS_LATENCY[2:0], SDMODE_SEQUENTIAL, BURST
 logic [3:0] state, state_next;
 logic new_state;
 logic [CNT_W-1:0] cnt, state_delay;
-logic first_cycle;
+logic first_cycle, last_cycle;
 logic [CNT2_W-1:0] cnt2;
 logic trigger_refresh, refresh_ack;
 logic boot_delay, booting;
 logic rw;
 
 // command port signals
-logic accept, ack;
-logic req;
-assign req = core_if.rd | (core_if.wr != 0);
-assign core_if.ack = ack;
+logic rdy, valid, req, valid_req;
+assign core_if.valid = valid;
 assign core_if.error = 0;
-assign core_if.accept = accept;
+assign core_if.rdy = rdy;
+assign req = core_if.rd | (core_if.wr != 0);
+assign valid_req = rdy & req;
 
 // sdram port signals
 logic [2:0] sd_cmd;
@@ -111,9 +110,11 @@ logic [1:0] bank;
 logic [ROW_WIDTH-1:0] row;
 logic [COL_WIDTH-1:0] col;
 logic byte_misalign;
-logic sd_rd, sd_wr;
+logic sd_wr, sd_rd, sd_rd_reg, sd_rd_cas;
+
 assign part_if.wr_en = sd_wr;
 
+assign last_cycle = (cnt==state_delay);
 always_ff @(posedge clk)
 begin
     if (rst) begin
@@ -130,10 +131,15 @@ begin
         col <= 0;
         byte_misalign <= 0;
         rw <= 0;
+        sd_rd_reg <= 0;
+        sd_rd_cas <= 0;
     end else begin
 
+        sd_rd_reg <= sd_rd;
+        sd_rd_cas <= (CAS_LATENCY == 2) ? sd_rd : sd_rd_reg;
+
         // count cycles within each state
-        if(cnt==state_delay) begin
+        if(last_cycle) begin
             state <= state_next;
             cnt <= '0;
             first_cycle <= 1;
@@ -157,7 +163,7 @@ begin
 
         if(refresh_ack & !booting) trigger_refresh <= 0;
     
-        if (accept) begin
+        if (valid_req) begin
             {bank, row, col, byte_misalign} <= core_if.addr[SDADDR_WIDTH-1:0];
             rw <= core_if.rd;
         end
@@ -177,12 +183,12 @@ begin
     sd_rd = 0;
     sd_wr = 0;
 
-    accept = 0;
+    rdy = 0;
     state_next = state;
     boot_delay = 0;
     state_delay = '0;
     refresh_ack = 0;
-    ack = 0;
+    valid = 0;
 
     case(state)
         STATE_BOOT: begin 
@@ -211,11 +217,11 @@ begin
             state_next = STATE_IDLE;
         end
         STATE_IDLE: begin  
+            rdy = 1;
             if( trigger_refresh ) begin
-                accept = 0;
+                rdy = 0;
                 state_next = STATE_REFRESH;
-            end else if (req) begin
-                accept = 1;
+            end else if(req) begin
                 state_next = STATE_ACTIVATE;                    
             end
         end
@@ -223,35 +229,33 @@ begin
             if(first_cycle) sd_cmd = SDRAM_ACTIVATE;
             part_if.addr = row;
             part_if.ba = bank;
-            state_next = rw ? STATE_READ_CMD : STATE_WRITE;
+            state_next = rw ? STATE_READ : STATE_WRITE;
             state_delay = `DELAY(DELAY_RCD-1, CNT_W);
         end
-        STATE_READ_CMD: begin 
+        // STATE_READ_CMD: begin 
+        //     if(first_cycle) sd_cmd = SDRAM_READ;
+        //     part_if.ba = bank;
+        //     part_if.addr[COL_WIDTH-1:0] = col;
+        //     state_next = STATE_READ;
+        //     state_delay = CAS_LATENCY-2;
+        // end
+        STATE_READ: begin 
             if(first_cycle) sd_cmd = SDRAM_READ;
             part_if.ba = bank;
             part_if.addr[COL_WIDTH-1:0] = col;
-            state_next = STATE_READ;
-            state_delay = CAS_LATENCY-2;
-        end
-        STATE_READ: begin 
             sd_rd = 1;
-            state_delay = `DELAY(BURST_SIZE-1, CNT_W);
-            state_next = STATE_ACK;
+            state_delay = `DELAY(CAS_LATENCY+BURST_SIZE-1, CNT_W);
+            valid = last_cycle;
+            state_next = STATE_IDLE;
         end
         STATE_WRITE: begin 
             if(first_cycle) sd_cmd = SDRAM_WRITE;
             part_if.ba = bank;
             part_if.addr[COL_WIDTH-1:0] = col;
             sd_wr = 1'b1;
-            state_next = STATE_ACK;
-            state_delay = `DELAY(BURST_SIZE-1, CNT_W);
-        end
-        STATE_ACK: begin 
-            ack = first_cycle;
             state_next = STATE_IDLE;
-            state_delay = rw ? `DELAY(DELAY_RP-1, CNT_W) : `DELAY(DELAY_DAL-2, CNT_W);
+            state_delay = `DELAY(`MAX(BURST_SIZE-1, DELAY_DAL-1), CNT_W);
         end
-
         default: begin end
     endcase
 end
@@ -269,7 +273,7 @@ generate
                 data_reg <= '0;
                 dqm_reg <= '0;
             end else begin
-                if (accept) begin
+                if (valid_req) begin
                     if (core_if.addr[0]) begin
                         data_reg <= {core_if.write_data, 8'b0};
                         dqm_reg <= ~{core_if.wr, 1'b0};
@@ -278,7 +282,7 @@ generate
                         dqm_reg <= ~{1'b0, core_if.wr};
                     end
                 end
-                if (sd_rd) data_reg[7:0] <= byte_misalign ? part_if.read_data[15:8] : part_if.read_data[7:0];
+                if (sd_rd_cas) data_reg[7:0] <= byte_misalign ? part_if.read_data[15:8] : part_if.read_data[7:0];
             end
         end
     end else if(core_if.DATA_WIDTH == 16) begin
@@ -287,11 +291,11 @@ generate
                 data_reg <= '0;
                 dqm_reg <= '0;
             end else begin
-                if (accept) begin
+                if (valid_req) begin
                     data_reg <= core_if.write_data;
                     dqm_reg <= ~core_if.wr;
                 end
-                if (sd_rd) data_reg <= part_if.read_data;
+                if (sd_rd_cas) data_reg <= part_if.read_data;
             end
         end
     end else begin // core_if.DATA_WIDTH >= 32
@@ -300,11 +304,11 @@ generate
                 data_reg <= '0;
                 dqm_reg <= '0;
             end else begin
-                if (accept) begin
+                if (valid_req) begin
                     data_reg <= core_if.write_data;
                     dqm_reg <= ~core_if.wr;
                 end
-                if (sd_wr | sd_rd) begin
+                if (sd_wr | sd_rd_cas) begin
                     // each rd/wr cycle shift down active 16-bit
                     // active write data is shifted into low bits
                     // active read data is shifted into high bits
@@ -316,7 +320,7 @@ generate
     end
 endgenerate
 
-assign core_if.read_data = (ack & rw) ? data_reg[core_if.DATA_WIDTH-1:0] : '0;
+assign core_if.read_data = (valid & rw) ? data_reg[core_if.DATA_WIDTH-1:0] : '0;
 assign part_if.write_data = data_reg[15:0];
 assign part_if.dqm = rw ? '0 : dqm_reg[1:0];
 
