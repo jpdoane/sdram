@@ -4,7 +4,7 @@ interface sdram_ctrl_if
     parameter int DATA_WIDTH=32,
     parameter int WORD_LEN=DATA_WIDTH/8
 )
-(   input          clk );
+();
     logic  [ WORD_LEN-1:0]  wr;
     logic           rd;
     logic  [ ADDR_WIDTH-1:0]  addr;
@@ -15,10 +15,10 @@ interface sdram_ctrl_if
     logic [ DATA_WIDTH-1:0]   read_data;
 
 
-    modport man (input  rdy, rvalid, error, read_data, clk,
+    modport man (input  rdy, rvalid, error, read_data,
                     output wr, rd, addr, write_data);
 
-    modport sub (input wr, rd, addr, write_data, clk,
+    modport sub (input wr, rd, addr, write_data,
                  output rdy, rvalid, error, read_data);
 
     // This throws mutliple driver error...
@@ -63,7 +63,7 @@ interface sdram_dev_if
     parameter COL_WIDTH=9,
     parameter ROW_WIDTH=ADDR_WIDTH-COL_WIDTH-3
 )
-(   input                  clk );
+();
 
     logic                   cke;
     logic                   cs;
@@ -77,10 +77,10 @@ interface sdram_dev_if
     logic [15:0]            write_data;
     logic                   wr_en;
 
-    modport man (input read_data, clk,
+    modport man (input read_data,
                  output cke, cs, ras, cas, we, dqm, addr, ba, write_data, wr_en);
   
-    modport sub (input cke, cs, ras, cas, we, dqm, addr, ba, write_data, wr_en, clk,
+    modport sub (input cke, cs, ras, cas, we, dqm, addr, ba, write_data, wr_en, 
                  output read_data);
 endinterface
 

@@ -103,10 +103,10 @@ end
 // clock ram with 90deg lag
 wire #QTR_CLK_PERIOD sdram_clk = clk; 
 
-sdram_core_if core_if(clk);
-sdram_core_if portA_if(clk);
-sdram_core_if portB_if(clk);
-sdram_part_if part_if(sdram_clk);
+sdram_core_if core_if();
+sdram_core_if portA_if();
+sdram_core_if portB_if();
+sdram_part_if part_if();
 
 sdram_arb
 u_sdram_arb
@@ -128,7 +128,7 @@ u_sdram_core(
 );
 
 MT48LC8M16A2 #(.Debug(DEBUG_SDRAM))
-u_sdram_model(part_if.man);
+u_sdram_model(sdram_clk, part_if.man);
 
 // testor testorA, testorB;
 // initial begin

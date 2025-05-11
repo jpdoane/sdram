@@ -48,12 +48,11 @@ module sdram_tb;
         #HALF_CLK_PERIOD;
         clk = ~clk;
     end
-    
     // clock ram with 90deg lag
     wire #QTR_CLK_PERIOD sdram_clk = clk; 
 
-    sdram_ctrl_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) sdram_ctrl_if(clk);
-    sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) sdram_dev_if(sdram_clk);
+    sdram_ctrl_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) sdram_ctrl_if();
+    sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) sdram_dev_if();
     
     localparam [ADDR_WIDTH-1:0] ADDRMASK = '1 << ($clog2(DATA_WIDTH)-3);
     int randint, bytenum;
@@ -146,6 +145,6 @@ module sdram_tb;
     .tRP    (tRP_NS),
     .tRRD   (DELAY_RRD*CLK_PERIOD)
     )
-    u_sdram_model(sdram_dev_if.man);
+    u_sdram_model(sdram_clk, sdram_dev_if.man);
     
 endmodule

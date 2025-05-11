@@ -8,27 +8,6 @@ module axil_sdram
     sdram_ctrl_if.man    sdram_ctrl
 );
 
-// // extract parameters
-// localparam DATA_W = s_axil_wr.DATA_W;
-// localparam STRB_W = s_axil_wr.STRB_W;
-
-// localparam VALID_ADDR_W = ADDR_W - $clog2(STRB_W);
-// localparam BYTE_LANES = STRB_W;
-// localparam BYTE_W = DATA_W/BYTE_LANES;
-
-// // check configuration
-// if (BYTE_W * STRB_W != DATA_W)
-//     $fatal(0, "Error: AXI data width not evenly divisible (instance %m)");
-
-// if (2**$clog2(BYTE_LANES) != BYTE_LANES)
-//     $fatal(0, "Error: AXI byte lane count must be even power of two (instance %m)");
-
-// if (s_axil_wr.DATA_W != sdram_ctrl.DATA_WIDTH || s_axil_rd.DATA_W != sdram_ctrl.DATA_WIDTH )
-//     $fatal(0, "Error: AXI interface configuration mismatch (instance %m)");
-
-// if (s_axil_wr.ADDR_W != sdram_ctrl.ADDR_WIDTH || s_axil_rd.ADDR_W != sdram_ctrl.ADDR_WIDTH)
-//     $fatal(0, "Error: AXI address width inconsistant (instance %m)");
-
 wire rd_req, wr_req;
 logic bvalid, rvalid;
 logic [31:0] rdata;

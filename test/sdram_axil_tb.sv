@@ -32,10 +32,10 @@ module sdram_axil_tb();
         #HALF_CLK_PERIOD;
         clk = ~clk;
     end
-
-    sdram_ctrl_if sdram_ctrl_if(clk);
     wire #QTR_CLK_PERIOD sdram_clk = clk; 
-    sdram_dev_if sdram_dev_if(sdram_clk);
+
+    sdram_ctrl_if sdram_ctrl_if();
+    sdram_dev_if sdram_dev_if();
     taxi_axil_if axi_if();
 
     axil_sdram u_axil_sdram
@@ -62,7 +62,7 @@ module sdram_axil_tb();
     MT48LC8M16A2 #(
     .Debug(DEBUG_SDRAM)
     )
-    u_sdram_model(sdram_dev_if.man);
+    u_sdram_model(sdram_clk, sdram_dev_if.man);
 
     int rnd;
     initial

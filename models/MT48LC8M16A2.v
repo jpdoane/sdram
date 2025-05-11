@@ -60,9 +60,11 @@ module MT48LC8M16A2
     parameter tWRp =  15.0     // A2 Version - Precharge mode only (15 ns)
     
 )
-( sdram_dev_if.sub sdram_dev_if );
+(
+    input logic clk,
+    sdram_dev_if.sub sdram_dev_if
+);
 
-    wire clk = sdram_dev_if.clk;
     localparam BANK_DEPTH = 2 ** (sdram_dev_if.ROW_WIDTH+sdram_dev_if.COL_WIDTH);                                  // 2 Meg
  
 
