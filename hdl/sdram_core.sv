@@ -95,8 +95,8 @@ logic boot_delay, booting;
 logic rw;
 
 // command port signals
-logic rdy, valid, req, valid_req;
-assign sdram_ctrl_if.valid = valid;
+logic rdy, rvalid, req, valid_req;
+assign sdram_ctrl_if.rvalid = rvalid;
 assign sdram_ctrl_if.error = 0;
 assign sdram_ctrl_if.rdy = rdy;
 assign req = sdram_ctrl_if.rd | (sdram_ctrl_if.wr != 0);
@@ -114,8 +114,42 @@ logic sd_wr, sd_rd, sd_rd_reg, sd_rd_cas;
 assign sdram_dev_if.wr_en = sd_wr;
 
 assign last_cycle = (cnt==state_delay);
+
 always_ff @(posedge clk)
 begin
+    sd_rd_reg <= sd_rd;
+    sd_rd_cas <= (CAS_LATENCY == 2) ? sd_rd : sd_rd_reg;
+
+    // count cycles within each state
+    cnt <= cnt+1;
+    first_cycle <= 0;
+
+    if(last_cycle) begin
+        state <= state_next;
+        cnt <= '0;
+        first_cycle <= 1;
+    end
+
+    // secondary counter for boot sequence and refresh
+    if(cnt2==0) begin
+        trigger_refresh <= 1;
+
+        if(boot_delay) begin
+            booting <= 1;
+            cnt2 <= `DELAY(BOOT_DURATION, CNT2_W);
+        end else begin
+            booting <= 0;
+            cnt2 <= `DELAY(DELAY_REF_INTERVAL, CNT2_W);
+        end
+    end else cnt2 <= cnt2-1;
+
+    if(refresh_ack & !booting) trigger_refresh <= 0;
+
+    if (valid_req) begin
+        {bank, row, col, byte_misalign} <= sdram_ctrl_if.addr[DEV_ADDR_WIDTH-1:0];
+        rw <= sdram_ctrl_if.rd;
+    end
+
     if (rst) begin
         state <= STATE_BOOT;
         cnt <= 0;
@@ -132,41 +166,7 @@ begin
         rw <= 0;
         sd_rd_reg <= 0;
         sd_rd_cas <= 0;
-    end else begin
-
-        sd_rd_reg <= sd_rd;
-        sd_rd_cas <= (CAS_LATENCY == 2) ? sd_rd : sd_rd_reg;
-
-        // count cycles within each state
-        if(last_cycle) begin
-            state <= state_next;
-            cnt <= '0;
-            first_cycle <= 1;
-        end else begin
-            cnt <= cnt+1;
-            first_cycle <= 0;
-        end
-
-        // secondary counter for boot sequence and refresh
-        if(cnt2==0) begin
-            trigger_refresh <= 1;
-
-            if(boot_delay) begin
-                booting <= 1;
-                cnt2 <= `DELAY(BOOT_DURATION, CNT2_W);
-            end else begin
-                booting <= 0;
-                cnt2 <= `DELAY(DELAY_REF_INTERVAL, CNT2_W);
-            end
-        end else cnt2 <= cnt2-1;
-
-        if(refresh_ack & !booting) trigger_refresh <= 0;
-    
-        if (valid_req) begin
-            {bank, row, col, byte_misalign} <= sdram_ctrl_if.addr[DEV_ADDR_WIDTH-1:0];
-            rw <= sdram_ctrl_if.rd;
-        end
-   end
+    end 
 end
 
 // state machine
@@ -187,7 +187,7 @@ begin
     boot_delay = 0;
     state_delay = '0;
     refresh_ack = 0;
-    valid = 0;
+    rvalid = 0;
 
     case(state)
         STATE_BOOT: begin 
@@ -217,11 +217,10 @@ begin
         end
         STATE_IDLE: begin  
             rdy = 1;
+            if(req) state_next = STATE_ACTIVATE;
             if( trigger_refresh ) begin
                 rdy = 0;
                 state_next = STATE_REFRESH;
-            end else if(req) begin
-                state_next = STATE_ACTIVATE;                    
             end
         end
         STATE_ACTIVATE: begin
@@ -237,7 +236,6 @@ begin
             sdram_dev_if.addr[COL_WIDTH-1:0] = col;
             sd_rd = 1;
             state_delay = `DELAY(CAS_LATENCY+BURST_SIZE-1, CNT_W);
-            valid = last_cycle;
             state_next = STATE_IDLE;
         end
         STATE_WRITE: begin 
@@ -312,7 +310,8 @@ generate
     end
 endgenerate
 
-assign sdram_ctrl_if.read_data = (valid & rw) ? data_reg[sdram_ctrl_if.DATA_WIDTH-1:0] : '0;
+assign rvalid = (sd_rd & last_cycle);
+assign sdram_ctrl_if.read_data = rvalid ? data_reg[sdram_ctrl_if.DATA_WIDTH-1:0] : '0;
 assign sdram_dev_if.write_data = data_reg[15:0];
 assign sdram_dev_if.dqm = rw ? '0 : dqm_reg[1:0];
 

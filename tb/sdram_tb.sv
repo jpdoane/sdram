@@ -1,6 +1,6 @@
 `timescale 1ns / 100ps
 
-module sdram_core_tb;
+module sdram_tb;
 
     logic clk, rst;
 
@@ -24,13 +24,13 @@ module sdram_core_tb;
     localparam int DELAY_WR      = 2;       // min clocks write recovery time
     localparam int DELAY_RSC     = 2;       // min clocks for mode register reset
 
-    parameter real CLK_PERIOD=1000/SDRAM_MHZ;
-    parameter real HALF_CLK_PERIOD=CLK_PERIOD/2;
-    parameter real QTR_CLK_PERIOD=CLK_PERIOD/4;
+    localparam real CLK_PERIOD=1000/SDRAM_MHZ;
+    localparam real HALF_CLK_PERIOD=CLK_PERIOD/2;
+    localparam real QTR_CLK_PERIOD=CLK_PERIOD/4;
     
     initial
      begin
-        $dumpfile("sdram_core_tb.vcd");
+        $dumpfile("sdram_tb.vcd");
         $dumpvars(0,sdram_core_tb);
         $dumpon;
         // #2600;
@@ -85,7 +85,7 @@ module sdram_core_tb;
         @(posedge clk);
         while(~sdram_ctrl_if.rdy) @(posedge clk); // delay until controller is not ready
         sdram_ctrl_if.rd <= 0;
-        while(~sdram_ctrl_if.valid) @(posedge clk); // delay until result is valid 
+        while(~sdram_ctrl_if.rvalid) @(posedge clk); // delay until result is valid 
     
         if(sdram_ctrl_if.read_data == DATA_WIDTH'(randint)) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, sdram_ctrl_if.read_data, sdram_ctrl_if.addr);
         else $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x", $time, sdram_ctrl_if.read_data, sdram_ctrl_if.addr);
@@ -107,7 +107,7 @@ module sdram_core_tb;
         // @(posedge clk);
         // while(~sdram_ctrl_if.accept) @(posedge clk); // delay if controller is not ready 
         // sdram_ctrl_if.rd <= 0;
-        // while(~sdram_ctrl_if.valid) @(posedge clk); // delay until result is valid     
+        // while(~sdram_ctrl_if.rvalid) @(posedge clk); // delay until result is valid     
         // $display("at time  %t: Read 0x%0x from 0x%0x", $time, sdram_ctrl_if.read_data, sdram_ctrl_if.addr);
 
         end
