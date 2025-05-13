@@ -33,7 +33,7 @@ module sdram_tb;
         $dumpfile("sdram.vcd");
         $dumpvars(0,sdram_core_tb);
         $dumpon;
-        // #2600;
+        // #4500;
         // $finish;
      end
     

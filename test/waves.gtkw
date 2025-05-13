@@ -1,21 +1,23 @@
 [*]
-[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Tue May 13 14:00:05 2025
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Tue May 13 20:25:31 2025
 [*]
-[dumpfile] "/home/jpdoane/sdram/test/sdram.vcd"
-[dumpfile_mtime] "Tue May 13 13:54:34 2025"
-[dumpfile_size] 117663
-[savefile] "/home/jpdoane/sdram/test/waves.gtkw"
-[timestart] 1836700
-[size] 1652 976
-[pos] 1270 -23
-*-17.012892 2310000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[dumpfile] "/home/jpdoane/dev/sdram/test/sdram.vcd"
+[dumpfile_mtime] "Tue May 13 20:24:34 2025"
+[dumpfile_size] 94229
+[savefile] "/home/jpdoane/dev/sdram/test/waves.gtkw"
+[timestart] 2166000
+[size] 960 1015
+[pos] -1 -1
+*-17.794065 2398000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] TOP.
 [treeopen] TOP.sdram_tb.
-[sst_width] 276
-[signals_width] 223
+[sst_width] 211
+[signals_width] 200
 [sst_expanded] 1
-[sst_vpaned_height] 288
+[sst_vpaned_height] 302
+@28
+TOP.sdram_tb.u_sdram_controller.clk
 @800200
 -ctrl_if
 @22
@@ -37,17 +39,36 @@ TOP.sdram_tb.sdram_ctrl_if.write_data[31:0]
 TOP.sdram_tb.sdram_ctrl_if.wvalid
 @1000200
 -ctrl_if
-@800200
+@c00200
+-dev_if
+@22
+TOP.sdram_tb.sdram_dev_if.addr[11:0]
+@28
+TOP.sdram_tb.sdram_dev_if.ba[1:0]
+TOP.sdram_tb.sdram_dev_if.cas
+TOP.sdram_tb.sdram_dev_if.cke
+TOP.sdram_tb.sdram_dev_if.cs
+TOP.sdram_tb.sdram_dev_if.dqm[1:0]
+TOP.sdram_tb.sdram_dev_if.ras
+@22
+TOP.sdram_tb.sdram_dev_if.read_data[15:0]
+@28
+TOP.sdram_tb.sdram_dev_if.we
+TOP.sdram_tb.sdram_dev_if.wr_en
+@22
+TOP.sdram_tb.sdram_dev_if.write_data[15:0]
+@1401200
+-dev_if
+@c00200
 -controller
-@2025
-^1 /home/jpdoane/sdram/test/states.txt
+@2024
+^1 /home/jpdoane/dev/sdram/test/states.txt
 TOP.sdram_tb.u_sdram_controller.state[2:0]
 @28
 TOP.sdram_tb.u_sdram_controller.bank[1:0]
 TOP.sdram_tb.u_sdram_controller.boot_delay
 TOP.sdram_tb.u_sdram_controller.booting
 TOP.sdram_tb.u_sdram_controller.byte_misalign
-TOP.sdram_tb.u_sdram_controller.clk
 @22
 TOP.sdram_tb.u_sdram_controller.cnt2[15:0]
 TOP.sdram_tb.u_sdram_controller.cnt[3:0]
@@ -69,24 +90,15 @@ TOP.sdram_tb.u_sdram_controller.rvalid
 TOP.sdram_tb.u_sdram_controller.rw
 TOP.sdram_tb.u_sdram_controller.sd_cmd[2:0]
 TOP.sdram_tb.u_sdram_controller.sd_rd
-TOP.sdram_tb.u_sdram_controller.sd_rd_cas
-TOP.sdram_tb.u_sdram_controller.sd_rd_reg
 TOP.sdram_tb.u_sdram_controller.sd_wr
 @22
 TOP.sdram_tb.u_sdram_controller.sdmode[11:0]
 TOP.sdram_tb.u_sdram_controller.state_delay[3:0]
 @28
-TOP.sdram_tb.u_sdram_controller.state_next[2:0]
-TOP.sdram_tb.u_sdram_controller.tRAS_NS
-TOP.sdram_tb.u_sdram_controller.tRCD_NS
-TOP.sdram_tb.u_sdram_controller.tRC_NS
-TOP.sdram_tb.u_sdram_controller.tREF_NS
-TOP.sdram_tb.u_sdram_controller.tRP_NS
-TOP.sdram_tb.u_sdram_controller.tXSR_NS
 TOP.sdram_tb.u_sdram_controller.trigger_refresh
 TOP.sdram_tb.u_sdram_controller.valid_req
 TOP.sdram_tb.u_sdram_controller.wvalid
-@1000200
+@1401200
 -controller
 [pattern_trace] 1
 [pattern_trace] 0

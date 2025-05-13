@@ -32,7 +32,7 @@ interface sdram_ctrl_if
         write_data <= data;
         wr <= '1;
         while(~rdy) @(posedge clk);
-        wr <= 0;
+        wr <= '0;
         write_data <= 0;
         while(~wvalid) @(posedge clk);
     endtask

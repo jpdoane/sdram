@@ -23,6 +23,7 @@ module sdram_core #(
     sdram_dev_if.man sdram_dev_if
 );
 
+localparam int DATA_WIDTH    = sdram_ctrl_if.DATA_WIDTH;
 localparam int ADDR_WIDTH    = sdram_ctrl_if.ADDR_WIDTH;
 localparam int DEV_ADDR_WIDTH  = sdram_dev_if.ADDR_WIDTH;
 localparam int COL_WIDTH     = sdram_dev_if.COL_WIDTH;
@@ -76,10 +77,10 @@ localparam SDMODE_INTERLEAVE = 1'b1;
 // localparam SDMODE_BURSTWRITE = 1'b0;
 // localparam SDMODE_SINGLEWRITE = 1'b0;
 
-if( !(sdram_ctrl_if.DATA_WIDTH == 8 || sdram_ctrl_if.DATA_WIDTH == 16 || sdram_ctrl_if.DATA_WIDTH == 32))
-    $error("unsupported data width: %d", sdram_ctrl_if.DATA_WIDTH);
+if( !(DATA_WIDTH == 8 || DATA_WIDTH == 16 || DATA_WIDTH == 32))
+    $error("unsupported data width: %d", DATA_WIDTH);
 
-localparam int BURST_SIZE = (sdram_ctrl_if.DATA_WIDTH == 32) ? 2 : 1;
+localparam int BURST_SIZE = (DATA_WIDTH == 32) ? 2 : 1;
 localparam BURST_MODE = BURST_SIZE == 2 ? SDMODE_BURST2 : SDMODE_BURST1;
 
 localparam sdmode = ROW_WIDTH'({3'b0, CAS_LATENCY[2:0], SDMODE_SEQUENTIAL, BURST_MODE});
@@ -110,7 +111,7 @@ logic [1:0] bank;
 logic [ROW_WIDTH-1:0] row;
 logic [COL_WIDTH-1:0] col;
 logic byte_misalign;
-logic sd_wr, sd_rd, sd_rd_reg, sd_rd_cas;
+logic sd_wr, sd_rd, sd_rd2;
 
 assign sdram_dev_if.wr_en = sd_wr;
 
@@ -118,8 +119,8 @@ assign last_cycle = (cnt==state_delay);
 
 always_ff @(posedge clk)
 begin
-    sd_rd_reg <= sd_rd;
-    sd_rd_cas <= (CAS_LATENCY == 2) ? sd_rd : sd_rd_reg;
+
+    if(DATA_WIDTH == 32) sd_rd2 <= sd_rd;
 
     // count cycles within each state
     cnt <= cnt+1;
@@ -165,8 +166,7 @@ begin
         col <= 0;
         byte_misalign <= 0;
         rw <= 0;
-        sd_rd_reg <= 0;
-        sd_rd_cas <= 0;
+        sd_rd2 <= 0;
     end 
 end
 
@@ -189,6 +189,7 @@ begin
     state_delay = '0;
     refresh_ack = 0;
     rvalid = 0;
+    wvalid = 0;
 
     case(state)
         STATE_BOOT: begin 
@@ -235,9 +236,10 @@ begin
             if(first_cycle) sd_cmd = SDRAM_READ;
             sdram_dev_if.ba = bank;
             sdram_dev_if.addr[COL_WIDTH-1:0] = col;
-            sd_rd = 1;
+            sd_rd = (cnt == CAS_LATENCY-1);
             state_delay = `DELAY(CAS_LATENCY+BURST_SIZE-1, CNT_W);
             state_next = STATE_IDLE;
+            rvalid = last_cycle;
         end
         STATE_WRITE: begin 
             if(first_cycle) sd_cmd = SDRAM_WRITE;
@@ -246,19 +248,20 @@ begin
             sd_wr = 1'b1;
             state_next = STATE_IDLE;
             state_delay = `DELAY(`MAX(BURST_SIZE-1, DELAY_DAL-1), CNT_W);
+            wvalid = last_cycle;
         end
         default: begin end
     endcase
 end
 
 // data register to support various data widths
-localparam DATA_REG_W = sdram_ctrl_if.DATA_WIDTH >= 16 ? sdram_ctrl_if.DATA_WIDTH : 16;
+localparam DATA_REG_W = DATA_WIDTH >= 16 ? DATA_WIDTH : 16;
 localparam DATA_REG_BYTES = DATA_REG_W/8;
 logic [DATA_REG_W-1:0] data_reg;
 logic [DATA_REG_BYTES-1:0] dqm_reg;
 
 generate
-    if(sdram_ctrl_if.DATA_WIDTH == 8) begin
+    if(DATA_WIDTH == 8) begin
         always_ff @(posedge clk) begin
             if (rst) begin
                 data_reg <= '0;
@@ -273,10 +276,10 @@ generate
                         dqm_reg <= ~{1'b0, sdram_ctrl_if.wr};
                     end
                 end
-                if (sd_rd_cas) data_reg[7:0] <= byte_misalign ? sdram_dev_if.read_data[15:8] : sdram_dev_if.read_data[7:0];
+                if (sd_rd) data_reg[7:0] <= byte_misalign ? sdram_dev_if.read_data[15:8] : sdram_dev_if.read_data[7:0];
             end
         end
-    end else if(sdram_ctrl_if.DATA_WIDTH == 16) begin
+    end else if(DATA_WIDTH == 16) begin
         always_ff @(posedge clk) begin
             if (rst) begin
                 data_reg <= '0;
@@ -286,10 +289,10 @@ generate
                     data_reg <= sdram_ctrl_if.write_data;
                     dqm_reg <= ~sdram_ctrl_if.wr;
                 end
-                if (sd_rd_cas) data_reg <= sdram_dev_if.read_data;
+                if (sd_rd) data_reg <= sdram_dev_if.read_data;
             end
         end
-    end else begin // sdram_ctrl_if.DATA_WIDTH >= 32
+    end else begin // DATA_WIDTH >= 32
         always_ff @(posedge clk) begin
             if (rst) begin
                 data_reg <= '0;
@@ -299,7 +302,7 @@ generate
                     data_reg <= sdram_ctrl_if.write_data;
                     dqm_reg <= ~sdram_ctrl_if.wr;
                 end
-                if (sd_wr | sd_rd_cas) begin
+                if (sd_wr | sd_rd | sd_rd2) begin
                     // each rd/wr cycle shift down active 16-bit
                     // active write data is shifted into low bits
                     // active read data is shifted into high bits
@@ -311,9 +314,7 @@ generate
     end
 endgenerate
 
-assign rvalid = (sd_rd & last_cycle);
-assign wvalid = (sd_wr & last_cycle);
-assign sdram_ctrl_if.read_data = rvalid ? data_reg[sdram_ctrl_if.DATA_WIDTH-1:0] : '0;
+assign sdram_ctrl_if.read_data = rvalid ? data_reg[DATA_WIDTH-1:0] : '0;
 assign sdram_dev_if.write_data = data_reg[15:0];
 assign sdram_dev_if.dqm = rw ? '0 : dqm_reg[1:0];
 
