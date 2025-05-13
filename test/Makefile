@@ -33,7 +33,7 @@ testaxi: $(OBJDIR)/Vsdram_axil_tb
 	$< $(VERILATOR_RUN_FLAGS)
 
 view: $(VCD)
-	gtkwave $(VCD) &
+	gtkwave $(VCD) -a waves.gtkw&
 
 clean:
 	-@rm -rf obj_dir
