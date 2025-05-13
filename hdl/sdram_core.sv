@@ -95,8 +95,9 @@ logic boot_delay, booting;
 logic rw;
 
 // command port signals
-logic rdy, rvalid, req, valid_req;
+logic rdy, rvalid, wvalid, req, valid_req;
 assign sdram_ctrl_if.rvalid = rvalid;
+assign sdram_ctrl_if.wvalid = wvalid;
 assign sdram_ctrl_if.error = 0;
 assign sdram_ctrl_if.rdy = rdy;
 assign req = sdram_ctrl_if.rd | (sdram_ctrl_if.wr != 0);
@@ -311,6 +312,7 @@ generate
 endgenerate
 
 assign rvalid = (sd_rd & last_cycle);
+assign wvalid = (sd_wr & last_cycle);
 assign sdram_ctrl_if.read_data = rvalid ? data_reg[sdram_ctrl_if.DATA_WIDTH-1:0] : '0;
 assign sdram_dev_if.write_data = data_reg[15:0];
 assign sdram_dev_if.dqm = rw ? '0 : dqm_reg[1:0];

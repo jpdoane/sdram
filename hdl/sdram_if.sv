@@ -11,15 +11,16 @@ interface sdram_ctrl_if
     logic  [ DATA_WIDTH-1:0]  write_data;
     logic           rdy;
     logic           rvalid;
+    logic           wvalid;
     logic           error;
     logic [ DATA_WIDTH-1:0]   read_data;
 
 
-    modport man (input  rdy, rvalid, error, read_data,
+    modport man (input  rdy, rvalid, wvalid, error, read_data,
                     output wr, rd, addr, write_data);
 
     modport sub (input wr, rd, addr, write_data,
-                 output rdy, rvalid, error, read_data);
+                 output rdy, rvalid, wvalid, error, read_data);
 
     // This throws mutliple driver error...
     // honestly not sure how tasks+interfaces are support to work...

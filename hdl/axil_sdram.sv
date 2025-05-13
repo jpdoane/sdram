@@ -8,12 +8,15 @@ module axil_sdram
     sdram_ctrl_if.man    sdram_ctrl
 );
 
-wire rd_req, wr_req;
+wire rd_req, wr_req, rd_ack, wr_ack;
 logic bvalid, rvalid;
 logic [31:0] rdata;
 
 assign rd_req = s_axil_rd.arvalid;
 assign wr_req = s_axil_wr.awvalid & s_axil_wr.wvalid;
+
+assign rd_ack = rd_req & sdram_ctrl.rdy;
+assign wr_ack = wr_req & sdram_ctrl.rdy;
 
 always_ff @(posedge clk) begin
     if(s_axil_rd.rready) begin
@@ -26,7 +29,7 @@ always_ff @(posedge clk) begin
     end
 
     if (s_axil_wr.bready) bvalid <= 0;
-    if (sdram_ctrl.rdy & wr_req) bvalid <= 1;
+    if (sdram_ctrl.wvalid) bvalid <= 1;
 
     if (rst) begin
         rdata <=  '0;
@@ -35,9 +38,9 @@ always_ff @(posedge clk) begin
     end
 end
 
-assign s_axil_rd.arready = rd_req & sdram_ctrl.rdy;
-assign s_axil_wr.awready = wr_req & sdram_ctrl.rdy;
-assign s_axil_wr.wready = wr_req & sdram_ctrl.rdy;
+assign s_axil_rd.arready = rd_ack;
+assign s_axil_wr.awready = wr_ack;
+assign s_axil_wr.wready = wr_ack;
 assign s_axil_rd.rdata = rdata;
 assign s_axil_rd.rvalid = rvalid;
 assign s_axil_wr.bvalid = bvalid;
