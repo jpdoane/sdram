@@ -22,34 +22,38 @@ interface sdram_ctrl_if
     modport sub (input wr, rd, addr, write_data,
                  output rdy, rvalid, wvalid, error, read_data);
 
-    task write(
-        ref logic  clk,
-        input logic  [ ADDR_WIDTH-1:0]  a,
-        input logic  [ DATA_WIDTH-1:0]  data
-        );
+    // Multiple driver errors....
+    //
+    // task write(
+    //     ref logic  clk,
+    //     input logic  [ ADDR_WIDTH-1:0]  a,
+    //     input logic  [ DATA_WIDTH-1:0]  data
+    //     );
     
-        addr <= a;
-        write_data <= data;
-        wr <= '1;
-        while(~rdy) @(posedge clk);
-        wr <= '0;
-        write_data <= 0;
-        while(~wvalid) @(posedge clk);
-    endtask
+    //     addr <= a;
+    //     write_data <= data;
+    //     wr <= '1;
+    //     while(~rdy) @(posedge clk);
+    //     @(posedge clk);
+    //     wr <= '0;
+    //     write_data <= 0;
+    //     while(~wvalid) @(posedge clk);
+    // endtask
 
-    task read(
-        ref logic  clk,
-        input logic  [ ADDR_WIDTH-1:0]  a,
-        output logic  [ DATA_WIDTH-1:0]  data
-        );
+    // task read(
+    //     ref logic  clk,
+    //     input logic  [ ADDR_WIDTH-1:0]  a,
+    //     output logic  [ DATA_WIDTH-1:0]  data
+    //     );
     
-        addr <= a;
-        rd <= 1;
-        while(~rdy) @(posedge clk);
-        rd <= 0;
-        while(~rvalid) @(posedge clk);
-        data = read_data;
-    endtask
+    //     addr <= a;
+    //     rd <= 1;
+    //     while(~rdy) @(posedge clk);
+    //     @(posedge clk);
+    //     rd <= 0;
+    //     while(~rvalid) @(posedge clk);
+    //     data = read_data;
+    // endtask
     
 endinterface
 
