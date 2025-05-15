@@ -64,34 +64,28 @@ module sdram_tb;
         repeat(10) begin
             addr = $urandom();
             write_data = $urandom();
-            sdram_ctrl_if.write(clk, addr, write_data);
+            // sdram_ctrl_if.write(clk, addr, write_data);
+            sdram_ctrl_if.addr = addr;
+            sdram_ctrl_if.write_data = write_data;
+            sdram_ctrl_if.wr = '1;
+            while(~sdram_ctrl_if.rdy) @(posedge clk);
+            @(posedge clk);
+            sdram_ctrl_if.wr = '0;
+            sdram_ctrl_if.write_data = 0;
+            while(~sdram_ctrl_if.wvalid) @(posedge clk);
             $display("at time %t Wrote 0x%0x to 0x%0x", $time, write_data, addr);
             
             // read
-            sdram_ctrl_if.read(clk, addr, read_data);
-
+            // sdram_ctrl_if.read(clk, addr, read_data);
+            sdram_ctrl_if.rd = 1;
+            while(~sdram_ctrl_if.rdy) @(posedge clk);
+            @(posedge clk);
+            sdram_ctrl_if.rd <= 0;
+            while(~sdram_ctrl_if.rvalid) @(posedge clk);
+            read_data = sdram_ctrl_if.read_data;
             if(read_data == write_data) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, read_data, addr);
             else $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x, expected ", $time, read_data, addr, write_data);
 
-
-            // // test byte select...
-            // // write
-            // sdram_ctrl_if.write_data <= 32'hdeadbeef;
-            // bytenum = $urandom_range(0,3);
-            // sdram_ctrl_if.wr <= 1'b1 << bytenum;
-            // @(posedge clk);
-            // while(~sdram_ctrl_if.accept) @(posedge clk); // delay if controller is not ready
-            // $display("at time %t Wrote only byte %d of 0xdeadbeef to 0x%0x", $time, bytenum, sdram_ctrl_if.addr[DATA_WIDTH-1:0], sdram_ctrl_if.addr);
-            // sdram_ctrl_if.wr <= '0;
-            // sdram_ctrl_if.write_data <= 0;
-            
-            // // read
-            // sdram_ctrl_if.rd <= 1;
-            // @(posedge clk);
-            // while(~sdram_ctrl_if.accept) @(posedge clk); // delay if controller is not ready 
-            // sdram_ctrl_if.rd <= 0;
-            // while(~sdram_ctrl_if.rvalid) @(posedge clk); // delay until result is valid     
-            // $display("at time  %t: Read 0x%0x from 0x%0x", $time, sdram_ctrl_if.read_data, sdram_ctrl_if.addr);
         end
 
         
