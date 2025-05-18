@@ -5,19 +5,19 @@ interface sdram_ctrl_if
     parameter int WORD_LEN=DATA_WIDTH/8
 )
 ();
-    logic  [ WORD_LEN-1:0]  wr;
-    logic           rd;
-    logic  [ ADDR_WIDTH-1:0]  addr;
-    logic  [ DATA_WIDTH-1:0]  write_data;
-    logic           rdy;
-    logic           rvalid;
-    logic           wvalid;
-    logic           error;
-    logic [ DATA_WIDTH-1:0]   read_data;
+    logic  [ WORD_LEN-1:0]      wr;
+    logic                       rd;
+    logic  [ ADDR_WIDTH-1:0]    addr;
+    logic  [ DATA_WIDTH-1:0]    write_data;
+    logic                       rdy;
+    logic                       rvalid;
+    logic                       wvalid;
+    logic                       error;
+    logic [ DATA_WIDTH-1:0]     read_data;
 
 
     modport man (input  rdy, rvalid, wvalid, error, read_data,
-                    output wr, rd, addr, write_data);
+                 output wr, rd, addr, write_data);
 
     modport sub (input wr, rd, addr, write_data,
                  output rdy, rvalid, wvalid, error, read_data);

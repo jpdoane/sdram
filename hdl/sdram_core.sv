@@ -218,11 +218,12 @@ begin
             state_next = STATE_IDLE;
         end
         STATE_IDLE: begin  
-            rdy = 1;
-            if(req) state_next = STATE_ACTIVATE;
             if( trigger_refresh ) begin
                 rdy = 0;
                 state_next = STATE_REFRESH;
+            end else begin
+                rdy = 1;
+                if(req) state_next = STATE_ACTIVATE;
             end
         end
         STATE_ACTIVATE: begin
