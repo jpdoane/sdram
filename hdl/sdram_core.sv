@@ -1,4 +1,4 @@
-`timescale 1ns/1ps
+`timescale 1ns / 100ps
 
 `define MAX(a,b) ((a) > (b) ? (a) : (b))
 `define DELAY(cycles, bits) `MAX(bits'(cycles),bits'(0))

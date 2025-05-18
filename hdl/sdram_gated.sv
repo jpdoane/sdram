@@ -1,4 +1,6 @@
 
+`timescale 1ns / 100ps
+
 module sdram_gated
 (
      input  logic          clk_ram

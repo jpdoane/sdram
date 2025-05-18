@@ -1,4 +1,6 @@
 
+`timescale 1ns / 100ps
+
 // arbitrate sdram access for two ports
 // on simultaneous request, port A has priority
 module sdram_arb

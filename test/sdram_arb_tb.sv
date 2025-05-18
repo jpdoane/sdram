@@ -1,6 +1,6 @@
 `timescale 1ns / 100ps
 
-module sdram_tb;
+module sdram_arb_tb;
 
     logic clk, rst;
 
@@ -51,28 +51,53 @@ module sdram_tb;
     // clock ram with 90deg lag
     wire #QTR_CLK_PERIOD sdram_clk = clk; 
 
+    sdram_ctrl_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) portA_if();
+    sdram_ctrl_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) portB_if();
     sdram_ctrl_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) ctrl_if();
     sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) dev_if();
     
-    logic [ADDR_WIDTH-1:0] addr;
-    logic [DATA_WIDTH-1:0] read_data, write_data;
+    logic [ADDR_WIDTH-1:0] addrA;
+    logic [DATA_WIDTH-1:0] read_dataA, write_dataA;
     always begin
         while(rst) @(posedge clk);
     
         repeat(10) begin
-            addr = $urandom();
-            write_data = $urandom();
-            write(ctrl_if, clk, addr, write_data);
-            $display("at time %t Wrote 0x%0x to 0x%0x", $time, write_data, addr);
-            
-            read(ctrl_if, clk, addr, read_data);
-            if(read_data == write_data) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, read_data, addr);
-            else $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x, expected ", $time, read_data, addr, write_data);
-
-        end
+            addrA = $urandom();
+            write_dataA = $urandom();
+            write(portA_if, clk, addrA, write_dataA);
+            $display("at time %t Wrote on PortA 0x%0x to 0x%0x", $time, write_dataA, addrA);
         
-        $finish;
+            read(portA_if, clk, addrA, read_dataA);
+            if(read_dataA == write_dataA) $display("at time  %t: Read correct value on PortA 0x%0x from 0x%0x", $time, read_dataA, addrA);
+            else $display("at time %t ERROR: Read incorrect value on PortA 0x%0x from 0x%0x, expected ", $time, read_dataA, addrA, write_dataA);
+        end
     end
+
+    logic [ADDR_WIDTH-1:0] addrB;
+    logic [DATA_WIDTH-1:0] read_dataB, write_dataB;
+    always begin
+        while(rst) @(posedge clk);
+    
+        addrB = $urandom();
+        write_dataB = $urandom();
+        write(portB_if.sub, clk, addrB, write_dataB);
+        $display("at time %t Wrote on PortB 0x%0x to 0x%0x", $time, write_dataB, addrB);
+    
+        read(portB_if.sub, clk, addrB, read_dataB);
+        if(read_dataB == write_dataB) $display("at time  %t: Read correct value on PortB 0x%0x from 0x%0x", $time, read_dataB, addrB);
+        else $display("at time %t ERROR: Read incorrect value on PortB 0x%0x from 0x%0x, expected ", $time, read_dataB, addrB, write_dataB);
+
+    end
+
+    sdram_arb
+    u_sdram_arb
+    (
+        .clk(clk),
+        .rst(rst),
+        .ctrl_if(ctrl_if.man),
+        .portA_if(portA_if.sub),
+        .portB_if(portB_if.sub)
+    );
 
     sdram_core
     #(
