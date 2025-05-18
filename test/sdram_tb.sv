@@ -92,8 +92,8 @@ module sdram_tb;
     u_sdram_controller(
         .clk      (clk      ),
         .rst      (rst      ),
-        .sdram_ctrl_if  (ctrl_if.man),
-        .sdram_dev_if  (dev_if.sub)
+        .ctrl_if  (ctrl_if.man),
+        .dev_if   (dev_if.sub)
     );
     
     MT48LC8M16A2 #(

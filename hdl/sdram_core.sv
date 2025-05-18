@@ -19,15 +19,15 @@ module sdram_core #(
     )(
     // main clocks
     input logic clk, rst,
-    sdram_ctrl_if.sub sdram_ctrl_if,
-    sdram_dev_if.man sdram_dev_if
+    sdram_ctrl_if.sub ctrl_if,
+    sdram_dev_if.man dev_if
 );
 
-localparam int DATA_WIDTH    = sdram_ctrl_if.DATA_WIDTH;
-localparam int ADDR_WIDTH    = sdram_ctrl_if.ADDR_WIDTH;
-localparam int DEV_ADDR_WIDTH  = sdram_dev_if.ADDR_WIDTH;
-localparam int COL_WIDTH     = sdram_dev_if.COL_WIDTH;
-localparam int ROW_WIDTH     = sdram_dev_if.ROW_WIDTH;
+localparam int DATA_WIDTH    = ctrl_if.DATA_WIDTH;
+localparam int ADDR_WIDTH    = ctrl_if.ADDR_WIDTH;
+localparam int DEV_ADDR_WIDTH  = dev_if.ADDR_WIDTH;
+localparam int COL_WIDTH     = dev_if.COL_WIDTH;
+localparam int ROW_WIDTH     = dev_if.ROW_WIDTH;
 
 localparam int CNT_W                = 4;
 localparam int CNT2_W               = 16;
@@ -97,23 +97,23 @@ logic rw;
 
 // command port signals
 logic rdy, rvalid, wvalid, req, valid_req;
-assign sdram_ctrl_if.rvalid = rvalid;
-assign sdram_ctrl_if.wvalid = wvalid;
-assign sdram_ctrl_if.error = 0;
-assign sdram_ctrl_if.rdy = rdy;
-assign req = sdram_ctrl_if.rd | (sdram_ctrl_if.wr != 0);
+assign ctrl_if.rvalid = rvalid;
+assign ctrl_if.wvalid = wvalid;
+assign ctrl_if.error = 0;
+assign ctrl_if.rdy = rdy;
+assign req = ctrl_if.rd | (ctrl_if.wr != 0);
 assign valid_req = rdy & req;
 
 // sdram port signals
 logic [2:0] sd_cmd;
-assign {sdram_dev_if.ras, sdram_dev_if.cas, sdram_dev_if.we} = sd_cmd;
+assign {dev_if.ras, dev_if.cas, dev_if.we} = sd_cmd;
 logic [1:0] bank;
 logic [ROW_WIDTH-1:0] row;
 logic [COL_WIDTH-1:0] col;
 logic byte_misalign;
 logic sd_wr, sd_rd, sd_rd2;
 
-assign sdram_dev_if.wr_en = sd_wr;
+assign dev_if.wr_en = sd_wr;
 
 assign last_cycle = (cnt==state_delay);
 
@@ -148,8 +148,8 @@ begin
     if(refresh_ack & !booting) trigger_refresh <= 0;
 
     if (valid_req) begin
-        {bank, row, col, byte_misalign} <= sdram_ctrl_if.addr[DEV_ADDR_WIDTH-1:0];
-        rw <= sdram_ctrl_if.rd;
+        {bank, row, col, byte_misalign} <= ctrl_if.addr[DEV_ADDR_WIDTH-1:0];
+        rw <= ctrl_if.rd;
     end
 
     if (rst) begin
@@ -173,12 +173,12 @@ end
 // state machine
 always @(*)
 begin
-    sdram_dev_if.cke = 1'b1;
-    sdram_dev_if.addr = 1 << 10; // auto precharge
-    sdram_dev_if.ba = 2'b0;
-    sdram_dev_if.cs = 1'b0;
-    sdram_dev_if.dqm = '0;
-    sdram_dev_if.write_data = '0;
+    dev_if.cke = 1'b1;
+    dev_if.addr = 1 << 10; // auto precharge
+    dev_if.ba = 2'b0;
+    dev_if.cs = 1'b0;
+    dev_if.dqm = '0;
+    dev_if.write_data = '0;
     sd_cmd = SDRAM_NOP;
     sd_rd = 0;
     sd_wr = 0;
@@ -195,7 +195,7 @@ begin
         STATE_BOOT: begin 
             // After power up, an initial pause of 200 μ S is required. To prevent data contention on the DQ bus 
             // during power up, it is required that the DQM and CKE pins be held high during the initial pause period.
-            sdram_dev_if.dqm = 2'b11;
+            dev_if.dqm = 2'b11;
             boot_delay = 1;
             if (booting) state_next = STATE_PRECHARGE;
         end
@@ -206,8 +206,8 @@ begin
         end
         STATE_MODESET: begin
             if(first_cycle) sd_cmd = SDRAM_MODE_SET;
-            sdram_dev_if.addr = sdmode;
-            sdram_dev_if.ba = 2'b0;
+            dev_if.addr = sdmode;
+            dev_if.ba = 2'b0;
             state_delay = `DELAY(DELAY_RSC-2, CNT_W);
             state_next = STATE_REFRESH;
         end
@@ -228,15 +228,15 @@ begin
         end
         STATE_ACTIVATE: begin
             if(first_cycle) sd_cmd = SDRAM_ACTIVATE;
-            sdram_dev_if.addr = row;
-            sdram_dev_if.ba = bank;
+            dev_if.addr = row;
+            dev_if.ba = bank;
             state_next = rw ? STATE_READ : STATE_WRITE;
             state_delay = `DELAY(DELAY_RCD-1, CNT_W);
         end
         STATE_READ: begin 
             if(first_cycle) sd_cmd = SDRAM_READ;
-            sdram_dev_if.ba = bank;
-            sdram_dev_if.addr[COL_WIDTH-1:0] = col;
+            dev_if.ba = bank;
+            dev_if.addr[COL_WIDTH-1:0] = col;
             sd_rd = (cnt == CAS_LATENCY-1);
             state_delay = `DELAY(CAS_LATENCY+BURST_SIZE-1, CNT_W);
             state_next = STATE_IDLE;
@@ -244,8 +244,8 @@ begin
         end
         STATE_WRITE: begin 
             if(first_cycle) sd_cmd = SDRAM_WRITE;
-            sdram_dev_if.ba = bank;
-            sdram_dev_if.addr[COL_WIDTH-1:0] = col;
+            dev_if.ba = bank;
+            dev_if.addr[COL_WIDTH-1:0] = col;
             sd_wr = 1'b1;
             state_next = STATE_IDLE;
             state_delay = `DELAY(`MAX(BURST_SIZE-1, DELAY_DAL-1), CNT_W);
@@ -269,15 +269,15 @@ generate
                 dqm_reg <= '0;
             end else begin
                 if (valid_req) begin
-                    if (sdram_ctrl_if.addr[0]) begin
-                        data_reg <= {sdram_ctrl_if.write_data, 8'b0};
-                        dqm_reg <= ~{sdram_ctrl_if.wr, 1'b0};
+                    if (ctrl_if.addr[0]) begin
+                        data_reg <= {ctrl_if.write_data, 8'b0};
+                        dqm_reg <= ~{ctrl_if.wr, 1'b0};
                     end else begin
-                        data_reg <= {8'b0, sdram_ctrl_if.write_data};
-                        dqm_reg <= ~{1'b0, sdram_ctrl_if.wr};
+                        data_reg <= {8'b0, ctrl_if.write_data};
+                        dqm_reg <= ~{1'b0, ctrl_if.wr};
                     end
                 end
-                if (sd_rd) data_reg[7:0] <= byte_misalign ? sdram_dev_if.read_data[15:8] : sdram_dev_if.read_data[7:0];
+                if (sd_rd) data_reg[7:0] <= byte_misalign ? dev_if.read_data[15:8] : dev_if.read_data[7:0];
             end
         end
     end else if(DATA_WIDTH == 16) begin
@@ -287,10 +287,10 @@ generate
                 dqm_reg <= '0;
             end else begin
                 if (valid_req) begin
-                    data_reg <= sdram_ctrl_if.write_data;
-                    dqm_reg <= ~sdram_ctrl_if.wr;
+                    data_reg <= ctrl_if.write_data;
+                    dqm_reg <= ~ctrl_if.wr;
                 end
-                if (sd_rd) data_reg <= sdram_dev_if.read_data;
+                if (sd_rd) data_reg <= dev_if.read_data;
             end
         end
     end else begin // DATA_WIDTH >= 32
@@ -300,14 +300,14 @@ generate
                 dqm_reg <= '0;
             end else begin
                 if (valid_req) begin
-                    data_reg <= sdram_ctrl_if.write_data;
-                    dqm_reg <= ~sdram_ctrl_if.wr;
+                    data_reg <= ctrl_if.write_data;
+                    dqm_reg <= ~ctrl_if.wr;
                 end
                 if (sd_wr | sd_rd | sd_rd2) begin
                     // each rd/wr cycle shift down active 16-bit
                     // active write data is shifted into low bits
                     // active read data is shifted into high bits
-                    data_reg <= {sdram_dev_if.read_data, data_reg[DATA_REG_W-1:16]};
+                    data_reg <= {dev_if.read_data, data_reg[DATA_REG_W-1:16]};
                     dqm_reg <= {2'b11, dqm_reg[DATA_REG_BYTES-1:2]};
                 end
             end
@@ -315,8 +315,8 @@ generate
     end
 endgenerate
 
-assign sdram_ctrl_if.read_data = rvalid ? data_reg[DATA_WIDTH-1:0] : '0;
-assign sdram_dev_if.write_data = data_reg[15:0];
-assign sdram_dev_if.dqm = rw ? '0 : dqm_reg[1:0];
+assign ctrl_if.read_data = rvalid ? data_reg[DATA_WIDTH-1:0] : '0;
+assign dev_if.write_data = data_reg[15:0];
+assign dev_if.dqm = rw ? '0 : dqm_reg[1:0];
 
 endmodule

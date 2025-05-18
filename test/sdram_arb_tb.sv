@@ -56,6 +56,42 @@ module sdram_arb_tb;
     sdram_ctrl_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) ctrl_if();
     sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) dev_if();
     
+    // this breaks in Verilator due to 
+    // https://github.com/verilator/verilator/issues/5116
+    //
+    // logic [ADDR_WIDTH-1:0] addrA;
+    // logic [DATA_WIDTH-1:0] read_dataA, write_dataA;
+    // always begin
+    //     while(rst) @(posedge clk);
+    
+    //     repeat(10) begin
+    //         addrA = $urandom();
+    //         write_dataA = $urandom();
+    //         write(portA_if, clk, addrA, write_dataA);
+    //         $display("at time %t Wrote on PortA 0x%0x to 0x%0x", $time, write_dataA, addrA);
+        
+    //         read(portA_if, clk, addrA, read_dataA);
+    //         if(read_dataA == write_dataA) $display("at time  %t: Read correct value on PortA 0x%0x from 0x%0x", $time, read_dataA, addrA);
+    //         else $display("at time %t ERROR: Read incorrect value on PortA 0x%0x from 0x%0x, expected ", $time, read_dataA, addrA, write_dataA);
+    //     end
+    // end
+
+    // logic [ADDR_WIDTH-1:0] addrB;
+    // logic [DATA_WIDTH-1:0] read_dataB, write_dataB;
+    // always begin
+    //     while(rst) @(posedge clk);
+    
+    //     addrB = $urandom();
+    //     write_dataB = $urandom();
+    //     write(portB_if.sub, clk, addrB, write_dataB);
+    //     $display("at time %t Wrote on PortB 0x%0x to 0x%0x", $time, write_dataB, addrB);
+    
+    //     read(portB_if.sub, clk, addrB, read_dataB);
+    //     if(read_dataB == write_dataB) $display("at time  %t: Read correct value on PortB 0x%0x from 0x%0x", $time, read_dataB, addrB);
+    //     else $display("at time %t ERROR: Read incorrect value on PortB 0x%0x from 0x%0x, expected ", $time, read_dataB, addrB, write_dataB);
+    // end
+
+
     logic [ADDR_WIDTH-1:0] addrA;
     logic [DATA_WIDTH-1:0] read_dataA, write_dataA;
     always begin
@@ -64,30 +100,62 @@ module sdram_arb_tb;
         repeat(10) begin
             addrA = $urandom();
             write_dataA = $urandom();
-            write(portA_if, clk, addrA, write_dataA);
+            portA_if.addr = addrA;
+            portA_if.write_data = write_dataA;
+            portA_if.wr = '1;
+            while(~portA_if.rdy) @(posedge clk);
+            @(posedge clk);
+            portA_if.wr = '0;
+            portA_if.write_data = 0;
+            while(~portA_if.wvalid) @(posedge clk);
             $display("at time %t Wrote on PortA 0x%0x to 0x%0x", $time, write_dataA, addrA);
         
-            read(portA_if, clk, addrA, read_dataA);
+            repeat(20) @(posedge clk);
+
+            portA_if.addr = addrA;
+            portA_if.rd = 1;
+            while(~portA_if.rdy) @(posedge clk);
+            @(posedge clk);
+            portA_if.rd = 0;
+            while(~portA_if.rvalid) @(posedge clk);
+            read_dataA = portA_if.read_data;
             if(read_dataA == write_dataA) $display("at time  %t: Read correct value on PortA 0x%0x from 0x%0x", $time, read_dataA, addrA);
             else $display("at time %t ERROR: Read incorrect value on PortA 0x%0x from 0x%0x, expected ", $time, read_dataA, addrA, write_dataA);
+
+            repeat(20) @(posedge clk);
         end
+        $finish;
     end
 
     logic [ADDR_WIDTH-1:0] addrB;
     logic [DATA_WIDTH-1:0] read_dataB, write_dataB;
     always begin
         while(rst) @(posedge clk);
-    
+
         addrB = $urandom();
         write_dataB = $urandom();
-        write(portB_if.sub, clk, addrB, write_dataB);
-        $display("at time %t Wrote on PortB 0x%0x to 0x%0x", $time, write_dataB, addrB);
+        portB_if.addr = addrB;
+        portB_if.write_data = write_dataB;
+        portB_if.wr = '1;
+        while(~portB_if.rdy) @(posedge clk);
+        @(posedge clk);
+        portB_if.wr = '0;
+        portB_if.write_data = 0;
+        while(~portB_if.wvalid) @(posedge clk);
+        $display("\t\t\tat time %t Wrote on PortB 0x%0x to 0x%0x", $time, write_dataB, addrB);
     
-        read(portB_if.sub, clk, addrB, read_dataB);
-        if(read_dataB == write_dataB) $display("at time  %t: Read correct value on PortB 0x%0x from 0x%0x", $time, read_dataB, addrB);
-        else $display("at time %t ERROR: Read incorrect value on PortB 0x%0x from 0x%0x, expected ", $time, read_dataB, addrB, write_dataB);
+        portB_if.addr = addrB;
+        portB_if.rd = 1;
+        while(~portB_if.rdy) @(posedge clk);
+        @(posedge clk);
+        portB_if.rd = 0;
+        while(~portB_if.rvalid) @(posedge clk);
+        read_dataB = portB_if.read_data;
+        if(read_dataB == write_dataB) $display("\t\t\tat time  %t: Read correct value on PortB 0x%0x from 0x%0x", $time, read_dataB, addrB);
+        else $display("\t\t\tat time %t ERROR: Read incorrect value on PortB 0x%0x from 0x%0x, expected ", $time, read_dataB, addrB, write_dataB);
 
     end
+
 
     sdram_arb
     u_sdram_arb
@@ -117,8 +185,8 @@ module sdram_arb_tb;
     u_sdram_controller(
         .clk      (clk      ),
         .rst      (rst      ),
-        .sdram_ctrl_if  (ctrl_if.man),
-        .sdram_dev_if  (dev_if.sub)
+        .ctrl_if  (ctrl_if.man),
+        .dev_if  (dev_if.sub)
     );
     
     MT48LC8M16A2 #(
@@ -132,38 +200,40 @@ module sdram_arb_tb;
     )
     u_sdram_model(sdram_clk, dev_if.man);
 
+    // this breaks in Verilator due to 
+    // https://github.com/verilator/verilator/issues/5116
+    //
+    // task write(
+    //     virtual sdram_ctrl_if ctrl_if,
+    //     ref logic  clk,
+    //     input logic  [ ADDR_WIDTH-1:0]  a,
+    //     input logic  [ DATA_WIDTH-1:0]  data
+    //     );
 
-    task write(
-        virtual sdram_ctrl_if ctrl_if,
-        ref logic  clk,
-        input logic  [ ADDR_WIDTH-1:0]  a,
-        input logic  [ DATA_WIDTH-1:0]  data
-        );
+    //     ctrl_if.addr = a;
+    //     ctrl_if.write_data = data;
+    //     ctrl_if.wr = '1;
+    //     while(~ctrl_if.rdy) @(posedge clk);
+    //     @(posedge clk);
+    //     ctrl_if.wr = '0;
+    //     ctrl_if.write_data = 0;
+    //     while(~ctrl_if.wvalid) @(posedge clk);
+    // endtask
 
-        ctrl_if.addr = a;
-        ctrl_if.write_data = data;
-        ctrl_if.wr = '1;
-        while(~ctrl_if.rdy) @(posedge clk);
-        @(posedge clk);
-        ctrl_if.wr = '0;
-        ctrl_if.write_data = 0;
-        while(~ctrl_if.wvalid) @(posedge clk);
-    endtask
+    // task read(
+    //     virtual sdram_ctrl_if ctrl_if,
+    //     ref logic  clk,
+    //     input logic  [ ADDR_WIDTH-1:0]  a,
+    //     output logic  [ DATA_WIDTH-1:0]  data
+    //     );
 
-    task read(
-        virtual sdram_ctrl_if ctrl_if,
-        ref logic  clk,
-        input logic  [ ADDR_WIDTH-1:0]  a,
-        output logic  [ DATA_WIDTH-1:0]  data
-        );
-
-        ctrl_if.addr = a;
-        ctrl_if.rd = 1;
-        while(~ctrl_if.rdy) @(posedge clk);
-        @(posedge clk);
-        ctrl_if.rd = 0;
-        while(~ctrl_if.rvalid) @(posedge clk);
-        data = ctrl_if.read_data;
-    endtask
+    //     ctrl_if.addr = a;
+    //     ctrl_if.rd = 1;
+    //     while(~ctrl_if.rdy) @(posedge clk);
+    //     @(posedge clk);
+    //     ctrl_if.rd = 0;
+    //     while(~ctrl_if.rvalid) @(posedge clk);
+    //     data = ctrl_if.read_data;
+    // endtask
 
 endmodule
