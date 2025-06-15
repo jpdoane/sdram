@@ -177,7 +177,7 @@ begin
     dev_if.addr = 1 << 10; // auto precharge
     dev_if.ba = 2'b0;
     dev_if.cs = 1'b0;
-    dev_if.dqm = '0;
+    dev_if.dqm = rw ? '0 : dqm_reg[1:0];
     dev_if.write_data = '0;
     sd_cmd = SDRAM_NOP;
     sd_rd = 0;
@@ -317,6 +317,5 @@ endgenerate
 
 assign ctrl_if.read_data = rvalid ? data_reg[DATA_WIDTH-1:0] : '0;
 assign dev_if.write_data = data_reg[15:0];
-assign dev_if.dqm = rw ? '0 : dqm_reg[1:0];
 
 endmodule
