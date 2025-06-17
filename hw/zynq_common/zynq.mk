@@ -32,6 +32,8 @@ TARGET = $(WORKSPACE)/$(APPLICATION)/build/$(APPLICATION).elf
 
 TMPSCRIPT_PY=$(BUILD)/vitis_script.py
 
+workspace: $(WORKSPACE)
+platform: $(WORKSPACE)/$(PLATFORM)
 fsbl: $(FSBL)
 target: $(TARGET)
 
@@ -101,23 +103,23 @@ flash: $(BOOT) $(FSBL)
 
 run: $(BOOT) $(FSBL)
 	@echo "Running application on ps"
-	echo "connect -url TCP:$(HW_SERVER)" > $(BUILD)/run.tcl
+	echo "connect" > $(BUILD)/run.tcl
 	echo "targets -set -nocase -filter {name =~\"APU*\"}" >> $(BUILD)/run.tcl
 	echo "rst -system" >> $(BUILD)/run.tcl
 	echo "after 1000" >> $(BUILD)/run.tcl
-	echo "targets -set -filter {name =~"xc7z020"}" >> $(BUILD)/run.tcl
+	echo "targets -set -filter {name =~\"$(DEVICE_SHORT)\"}" >> $(BUILD)/run.tcl
 	echo "fpga -file $(BIT)" >> $(BUILD)/run.tcl
-	echo "targets -set -nocase -filter {name =~"APU*"}" >> $(BUILD)/run.tcl
+	echo "targets -set -nocase -filter {name =~\"APU*\"}" >> $(BUILD)/run.tcl
 	echo "loadhw -hw $(XSA_FILE) -mem-ranges [list {0x40000000 0xbfffffff}] -regs" >> $(BUILD)/run.tcl
 	echo "configparams force-mem-access 1" >> $(BUILD)/run.tcl
-	echo "targets -set -nocase -filter {name =~"APU*"}" >> $(BUILD)/run.tcl
+	echo "targets -set -nocase -filter {name =~\"APU*\"}" >> $(BUILD)/run.tcl
 	echo "source $(WORKSPACE)/$(APPLICATION)/_ide/psinit/ps7_init.tcl" >> $(BUILD)/run.tcl
 	echo "ps7_init" >> $(BUILD)/run.tcl
 	echo "ps7_post_config" >> $(BUILD)/run.tcl
-	echo "targets -set -nocase -filter {name =~ "*A9*#0"}" >> $(BUILD)/run.tcl
+	echo "targets -set -nocase -filter {name =~ \"*A9*#0\"}" >> $(BUILD)/run.tcl
 	echo "dow $(TARGET)" >> $(BUILD)/run.tcl
 	echo "configparams force-mem-access 0" >> $(BUILD)/run.tcl
-	echo "targets -set -nocase -filter {name =~ "*A9*#0"}" >> $(BUILD)/run.tcl
+	echo "targets -set -nocase -filter {name =~ \"*A9*#0\"}" >> $(BUILD)/run.tcl
 	echo "con" >> $(BUILD)/run.tcl
 	xsct $(BUILD)/run.tcl
 	

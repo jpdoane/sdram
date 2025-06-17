@@ -67,7 +67,7 @@ interface taxi_axil_if #(
     logic                 rvalid;
     logic                 rready;
 
-    modport wr_mst (
+    modport man (
         // AW
         output awaddr,
         output awprot,
@@ -84,10 +84,8 @@ interface taxi_axil_if #(
         input  bresp,
         input  buser,
         input  bvalid,
-        output bready
-    );
+        output bready,
 
-    modport rd_mst (
         // AR
         output araddr,
         output arprot,
@@ -102,7 +100,7 @@ interface taxi_axil_if #(
         output rready
     );
 
-    modport wr_slv (
+    modport sub (
         // AW
         input  awaddr,
         input  awprot,
@@ -119,10 +117,8 @@ interface taxi_axil_if #(
         output bresp,
         output buser,
         output bvalid,
-        input  bready
-    );
+        input  bready,
 
-    modport rd_slv (
         // AR
         input  araddr,
         input  arprot,
@@ -137,7 +133,7 @@ interface taxi_axil_if #(
         input  rready
     );
 
-    modport wr_mon (
+    modport mon (
         // AW
         input  awaddr,
         input  awprot,
@@ -154,10 +150,8 @@ interface taxi_axil_if #(
         input  bresp,
         input  buser,
         input  bvalid,
-        input  bready
-    );
+        input  bready,
 
-    modport rd_mon (
         // AR
         input  araddr,
         input  arprot,

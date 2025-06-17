@@ -4,18 +4,18 @@
 `define DELAY(cycles, bits) `MAX(bits'(cycles),bits'(0))
 
 module sdram_core #(
-    parameter SDRAM_MHZ     = 50,
-    parameter CAS_LATENCY   = 2,
-    parameter STARTUP_US    = 100.0,       // min time in us to hold in startup before initialization
-    parameter tRC_NS        = 60.0,        // min time in ns between row activations (same bank)
-    parameter tRAS_NS       = 42.0,        // min time in ns from row activation to precharge (same bank)
-    parameter tRCD_NS       = 15.0,        // min time in ns from row activation to read/write
-    parameter tRP_NS        = 15.0,        // min time in ns from precharge to refresh/activation (same bank)
-    parameter tXSR_NS       = 72.0,        // min time in ns from self-refresh exit to activation
-    parameter tREF_NS       = 64e6,        // max time in ns to perform all 8k refresh cycles
-    parameter DELAY_WR      = 2,           // min clocks between row activations (different bank)
-    parameter DELAY_RRD     = 2,           // min clocks between row activations (different bank)
-    parameter DELAY_RSC     = 2
+    parameter real SDRAM_MHZ     = 50,
+    parameter int CAS_LATENCY   = 2,
+    parameter real STARTUP_US    = 100.0,       // min time in us to hold in startup before initialization
+    parameter real tRC_NS        = 60.0,        // min time in ns between row activations (same bank)
+    parameter real tRAS_NS       = 42.0,        // min time in ns from row activation to precharge (same bank)
+    parameter real tRCD_NS       = 15.0,        // min time in ns from row activation to read/write
+    parameter real tRP_NS        = 15.0,        // min time in ns from precharge to refresh/activation (same bank)
+    parameter real tXSR_NS       = 72.0,        // min time in ns from self-refresh exit to activation
+    parameter real tREF_NS       = 64e6,        // max time in ns to perform all 8k refresh cycles
+    parameter int DELAY_WR      = 2,           // min clocks between row activations (different bank)
+    parameter int DELAY_RRD     = 2,           // min clocks between row activations (different bank)
+    parameter int DELAY_RSC     = 2
     )(
     // main clocks
     input logic clk, rst,
@@ -37,7 +37,7 @@ localparam int DELAY_REF_INTERVAL   = int'($ceil(tREF_NS/8192/CLK_PERIOD_NS));
 localparam int DELAY_RC             = int'($ceil(tRC_NS / CLK_PERIOD_NS));
 localparam int DELAY_RCD            = int'($ceil(tRCD_NS/CLK_PERIOD_NS));
 localparam int DELAY_RP             = int'($ceil(tRP_NS/CLK_PERIOD_NS));
-localparam int DELAY_DAL            = int'($ceil(DELAY_WR + DELAY_RP));
+localparam int DELAY_DAL            = DELAY_WR + DELAY_RP;
 
 // sdram control words for sd_cmd
 // applied to {ras_n, cas_n, we_n}
@@ -178,7 +178,6 @@ begin
     dev_if.ba = 2'b0;
     dev_if.cs = 1'b0;
     dev_if.dqm = rw ? '0 : dqm_reg[1:0];
-    dev_if.write_data = '0;
     sd_cmd = SDRAM_NOP;
     sd_rd = 0;
     sd_wr = 0;
@@ -237,7 +236,9 @@ begin
             if(first_cycle) sd_cmd = SDRAM_READ;
             dev_if.ba = bank;
             dev_if.addr[COL_WIDTH-1:0] = col;
-            sd_rd = (cnt == CAS_LATENCY-1);
+            /* verilator lint_off WIDTHEXPAND */
+            sd_rd = (cnt == (CAS_LATENCY-1));
+            /* verilator lint_on WIDTHEXPAND */
             state_delay = `DELAY(CAS_LATENCY+BURST_SIZE-1, CNT_W);
             state_next = STATE_IDLE;
             rvalid = last_cycle;

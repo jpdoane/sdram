@@ -64,6 +64,8 @@ uniq_base = $(if $1,$(call uniq_base,$(foreach f,$1,$(if $(filter-out $(notdir $
 SYN_FILES := $(call uniq_base,$(call process_f_files,$(SYN_FILES)))
 INC_FILES := $(call uniq_base,$(call process_f_files,$(INC_FILES)))
 
+ILA_TCL=$(ZYNQ_COMMON)/insert_ila.tcl
+
 ###################################################################
 # Main Targets
 #
@@ -78,6 +80,9 @@ INC_FILES := $(call uniq_base,$(call process_f_files,$(INC_FILES)))
 PROJECTFILE = $(BUILD)/$(PROJECT).xpr
 
 all: fpga
+
+synth: $(BUILD)/$(PROJECT).runs/synth_1/$(PROJECT).dcp
+impl: $(BUILD)/$(PROJECT).runs/impl_1/$(PROJECT)_routed.dcp
 
 fpga: $(BUILD)/$(PROJECT).bit
 
@@ -112,7 +117,7 @@ $(BUILD)/create_project.tcl: $(XCI_FILES) $(IP_TCL_FILES)
 	rm -rf $(BUILD)/defines.v
 	touch $(BUILD)/defines.v
 	for x in $(DEFS); do echo '`define' $$x >> $(BUILD)/defines.v; done
-	echo "create_project -force -part $(FPGA_PART) $(PROJECT)" > $@
+	echo "create_project -force -part $(DEVICE_LONG) $(PROJECT)" > $@
 	echo "add_files -fileset sources_1 defines.v $(SYN_FILES)" >> $@
 	echo "set_property top $(FPGA_TOP) [current_fileset]" >> $@
 	echo "add_files -fileset constrs_1 $(XDC_FILES)" >> $@
@@ -136,8 +141,16 @@ $(BUILD)/$(PROJECT).runs/synth_1/$(PROJECT).dcp: $(BUILD)/create_project.tcl $(B
 	echo "wait_on_run synth_1" >> $(BUILD)/run_synth.tcl
 	cd $(BUILD); vivado -nojournal -nolog -mode batch -source $(BUILD)/run_synth.tcl
 
+# add ila
+$(BUILD)/debug_nets.ltx: $(BUILD)/$(PROJECT).runs/synth_1/$(PROJECT).dcp
+	echo "open_project $(PROJECTFILE)" > $(BUILD)/add_ila.tcl
+	echo "open_run synth_1" >> $(BUILD)/add_ila.tcl
+	echo "source $(ILA_TCL)" >> $(BUILD)/add_ila.tcl
+	echo "batch_insert_ila 1024" >> $(BUILD)/add_ila.tcl
+	cd $(BUILD); vivado -nojournal -nolog -mode batch -source $(BUILD)/add_ila.tcl
+
 # implementation run
-$(BUILD)/$(PROJECT).runs/impl_1/$(PROJECT)_routed.dcp: $(BUILD)/$(PROJECT).runs/synth_1/$(PROJECT).dcp
+$(BUILD)/$(PROJECT).runs/impl_1/$(PROJECT)_routed.dcp: $(BUILD)/$(PROJECT).runs/synth_1/$(PROJECT).dcp $(BUILD)/debug_nets.ltx
 	echo "open_project $(PROJECTFILE)" > $(BUILD)/run_impl.tcl
 	echo "reset_run impl_1" >> $(BUILD)/run_impl.tcl
 	echo "launch_runs -jobs 4 impl_1" >> $(BUILD)/run_impl.tcl

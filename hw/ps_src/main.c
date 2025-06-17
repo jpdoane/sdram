@@ -22,11 +22,12 @@
 #include "xil_printf.h"
 
 #include <sleep.h>
-#define AXI_BASEADDR 0x41000000
+#define AXI_BASEADDR 0x40000000
 
 // u32 ramval(u32 n) { return 0xdeadbeef + (n<<16); }
 u32 ramval(u32 n){
-    return n ^ 0xFDB97531;
+    // return n ^ 0xFDB97531;
+    return n;
 }
 
 int main()
@@ -41,14 +42,15 @@ int main()
 
 	u32* sdram = (u32*) AXI_BASEADDR;
 
-    int Ncheck = 0x8000000;
+    int Ncheck = 0x10;
 
     while (1) {
         xil_printf("\n\nInitializing RAM...\r\n");
         for (int n=0; n < Ncheck; n++)
         {
             sdram[n] = ramval(n);
-            // xil_printf("write 0x%x\r\n", n);
+            xil_printf("write [0x%x] <= 0x%x\r\n", n, ramval(n));
+            usleep(1000000);
         }
 
         xil_printf("Reading RAM 0x0...0x%x...\r\n", Ncheck-1);
@@ -64,6 +66,7 @@ int main()
             // else
             //     xil_printf("read 0x%x\r\n", n);
 
+            usleep(1000000);
 
         }
         if(valid)
@@ -71,7 +74,7 @@ int main()
         else
             xil_printf("RAM has issues :(\r\n");
 
-        usleep(1000000);
+        usleep(10000);
     }
 
     // cleanup_platform();

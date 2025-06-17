@@ -44,8 +44,8 @@ module zynq_sdram
     inout FIXED_IO_ps_srstb
 );
 
-    assign LED[0] = SW[0];
-    assign LED[1] = 1;
+    // assign LED[0] = SW[0];
+    // assign LED[1] = SW[1];
 
     wire ACLK;
     wire ARST;
@@ -59,7 +59,7 @@ module zynq_sdram
 
     sdram_ctrl_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) ctrl_if();
     sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) dev_if();
-    taxi_axil_if axil_if();
+    taxi_axil_if axi_if();
 
     zynq_ps_axi
     u_zynq
@@ -90,33 +90,32 @@ module zynq_sdram
     .FIXED_IO_ps_clk      (FIXED_IO_ps_clk),
     .FIXED_IO_ps_porb     (FIXED_IO_ps_porb),
     .FIXED_IO_ps_srstb    (FIXED_IO_ps_srstb),
-    .M00_AXI_0_araddr     (axil_if.araddr),
-    .M00_AXI_0_arprot     (axil_if.arprot),
-    .M00_AXI_0_arready    (axil_if.arready),
-    .M00_AXI_0_arvalid    (axil_if.arvalid),
-    .M00_AXI_0_awaddr     (axil_if.awaddr),
-    .M00_AXI_0_awprot     (axil_if.awprot),
-    .M00_AXI_0_awready    (axil_if.awready),
-    .M00_AXI_0_awvalid    (axil_if.awvalid),
-    .M00_AXI_0_bready     (axil_if.bready),
-    .M00_AXI_0_bresp      (axil_if.bresp),
-    .M00_AXI_0_bvalid     (axil_if.bvalid),
-    .M00_AXI_0_rdata      (axil_if.rdata),
-    .M00_AXI_0_rready     (axil_if.rready),
-    .M00_AXI_0_rresp      (axil_if.rresp),
-    .M00_AXI_0_rvalid     (axil_if.rvalid),
-    .M00_AXI_0_wdata      (axil_if.wdata),
-    .M00_AXI_0_wready     (axil_if.wready),
-    .M00_AXI_0_wstrb      (axil_if.wstrb),
-    .M00_AXI_0_wvalid     (axil_if.wvalid)
+    .M00_AXI_0_araddr     (axi_if.araddr),
+    .M00_AXI_0_arprot     (axi_if.arprot),
+    .M00_AXI_0_arready    (axi_if.arready),
+    .M00_AXI_0_arvalid    (axi_if.arvalid),
+    .M00_AXI_0_awaddr     (axi_if.awaddr),
+    .M00_AXI_0_awprot     (axi_if.awprot),
+    .M00_AXI_0_awready    (axi_if.awready),
+    .M00_AXI_0_awvalid    (axi_if.awvalid),
+    .M00_AXI_0_bready     (axi_if.bready),
+    .M00_AXI_0_bresp      (axi_if.bresp),
+    .M00_AXI_0_bvalid     (axi_if.bvalid),
+    .M00_AXI_0_rdata      (axi_if.rdata),
+    .M00_AXI_0_rready     (axi_if.rready),
+    .M00_AXI_0_rresp      (axi_if.rresp),
+    .M00_AXI_0_rvalid     (axi_if.rvalid),
+    .M00_AXI_0_wdata      (axi_if.wdata),
+    .M00_AXI_0_wready     (axi_if.wready),
+    .M00_AXI_0_wstrb      (axi_if.wstrb),
+    .M00_AXI_0_wvalid     (axi_if.wvalid)
     );
 
     axil_sdram u_axil_sdram
     (
         .clk    (ACLK),
         .rst    (ARST),
-        .s_axil_wr  (axil_if),
-        .s_axil_rd  (axil_if),
+        .axi_if  (axi_if),
         .sdram_ctrl (ctrl_if)
     );
 
@@ -135,7 +134,6 @@ module zynq_sdram
     u_sdram_io
     (
         .clk                     (ACLK),
-        .rst                     (ARST),
         .dev_if                  (dev_if),
         .clk_sdram               (clk_sdram),
         .sdram_cke               (sdram_cke),
@@ -149,5 +147,37 @@ module zynq_sdram
         .sdram_bs                (sdram_bs),
         .sdram_dq                (sdram_dq)
     );
+
+    // assign LED = ctrl_if.write_data[3:0];
+    logic [3:0] led_reg;
+    always_ff @(posedge ACLK) begin
+        led_reg <= '0;
+        case(SW)
+            2'b00: if(axi_if.awvalid) led_reg <= axi_if.awaddr[3:0];
+            2'b01: if(axi_if.wvalid) led_reg <= axi_if.wdata[3:0];
+            2'b10: if(axi_if.wvalid) led_reg <= axi_if.wstrb[3:0];
+            2'b11: if(axi_if.rvalid) led_reg <= axi_if.rdata[3:0];
+        endcase
+    end
+    assign LED = led_reg;
+    
+
+    (* keep="true",mark_debug="true" *) wire [ADDR_WIDTH-1:0]    awaddr = axi_if.awaddr;
+    (* keep="true",mark_debug="true" *) wire                     awvalid = axi_if.awvalid;
+    (* keep="true",mark_debug="true" *) wire                     awready = axi_if.awready;
+    (* keep="true",mark_debug="true" *) wire [DATA_WIDTH-1:0]    wdata = axi_if.wdata;
+    (* keep="true",mark_debug="true" *) wire [3:0]               wstrb = axi_if.wstrb;
+    (* keep="true",mark_debug="true" *) wire                     wvalid = axi_if.wvalid;
+    (* keep="true",mark_debug="true" *) wire                     wready = axi_if.wready;
+    (* keep="true",mark_debug="true" *) wire                     bvalid = axi_if.bvalid;
+    (* keep="true",mark_debug="true" *) wire                     bready = axi_if.bready;
+    (* keep="true",mark_debug="true" *) wire [ADDR_WIDTH-1:0]    araddr = axi_if.araddr;
+    (* keep="true",mark_debug="true" *) wire                     arvalid = axi_if.arvalid;
+    (* keep="true",mark_debug="true" *) wire                     arready = axi_if.arready;
+    (* keep="true",mark_debug="true" *) wire [DATA_WIDTH-1:0]    rdata = axi_if.rdata;
+    (* keep="true",mark_debug="true" *) wire                     rvalid = axi_if.rvalid;
+    (* keep="true",mark_debug="true" *) wire                     rready = axi_if.rready;
+
+
 
 endmodule

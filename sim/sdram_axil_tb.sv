@@ -42,9 +42,8 @@ module sdram_axil_tb();
     (
         .clk    (clk),
         .rst    (rst),
-        .s_axil_wr  (axi_if.wr_mst),
-        .s_axil_rd  (axi_if.rd_mst),
-        .sdram_ctrl (sdram_ctrl_if.sub)
+        .axi_if  (axi_if),
+        .sdram_ctrl (sdram_ctrl_if)
     );
 
     sdram_core
@@ -55,8 +54,8 @@ module sdram_axil_tb();
     u_sdram_controller(
         .clk      (clk      ),
         .rst      (rst      ),
-        .sdram_ctrl_if  (sdram_ctrl_if.man),
-        .sdram_dev_if  (sdram_dev_if.sub)
+        .ctrl_if  (sdram_ctrl_if),
+        .dev_if   (sdram_dev_if)
     );
     
     MT48LC8M16A2 #(
@@ -68,15 +67,15 @@ module sdram_axil_tb();
     initial
     begin
         // *** Initial value ***
-        axi_if.wr_mst.awaddr = 0;
-        axi_if.wr_mst.awvalid = 0;
-        axi_if.wr_mst.wstrb = 0;
-        axi_if.wr_mst.wdata = 0;
-        axi_if.wr_mst.wvalid = 0;
-        axi_if.wr_mst.bready = 0;
-        axi_if.rd_mst.araddr = 0;
-        axi_if.rd_mst.arvalid = 0;
-        axi_if.rd_mst.rready = 0;
+        axi_if.man.awaddr = 0;
+        axi_if.man.awvalid = 0;
+        axi_if.man.wstrb = 0;
+        axi_if.man.wdata = 0;
+        axi_if.man.wvalid = 0;
+        axi_if.man.bready = 0;
+        axi_if.man.araddr = 0;
+        axi_if.man.arvalid = 0;
+        axi_if.man.rready = 0;
 
         while(rst) @(posedge clk);
         
@@ -94,20 +93,20 @@ module sdram_axil_tb();
         input [31:0] awaddr;
         input [31:0] wdata; 
         begin
-            axi_if.wr_mst.awaddr = awaddr;
-            axi_if.wr_mst.wdata = wdata;
-            axi_if.wr_mst.wstrb = 4'hf;
-            axi_if.wr_mst.awvalid = 1;
-            axi_if.wr_mst.wvalid = 1;
-            while(~axi_if.wr_mst.awready) @(posedge clk);
+            axi_if.man.awaddr = awaddr;
+            axi_if.man.wdata = wdata;
+            axi_if.man.wstrb = 4'hf;
+            axi_if.man.awvalid = 1;
+            axi_if.man.wvalid = 1;
+            while(~axi_if.man.awready) @(posedge clk);
             @(posedge clk);
-            axi_if.wr_mst.awvalid = 0;
-            axi_if.wr_mst.wvalid = 0;
-            axi_if.wr_mst.awaddr = 0;
-            axi_if.wr_mst.wstrb = 0;
-            axi_if.wr_mst.wdata = 0;
-            axi_if.wr_mst.bready = 1;
-            while(~axi_if.wr_mst.bvalid) @(posedge clk);
+            axi_if.man.awvalid = 0;
+            axi_if.man.wvalid = 0;
+            axi_if.man.awaddr = 0;
+            axi_if.man.wstrb = 0;
+            axi_if.man.wdata = 0;
+            axi_if.man.bready = 1;
+            while(~axi_if.man.bvalid) @(posedge clk);
         end
     endtask
     
@@ -115,15 +114,15 @@ module sdram_axil_tb();
         input [31:0] araddr;
         // output [31:0] rdata; 
         begin
-            axi_if.rd_mst.araddr = araddr;
-            axi_if.rd_mst.arvalid = 1;
-            while(~axi_if.rd_mst.arready) @(posedge clk);
+            axi_if.man.araddr = araddr;
+            axi_if.man.arvalid = 1;
+            while(~axi_if.man.arready) @(posedge clk);
             @(posedge clk);
-            axi_if.rd_mst.arvalid = 0;
-            axi_if.rd_mst.araddr = 0;
-            axi_if.rd_mst.rready = 1;
-            while(~axi_if.rd_mst.rvalid) @(posedge clk);
-            // rdata = axi_if.rd_mst.rdata;
+            axi_if.man.arvalid = 0;
+            axi_if.man.araddr = 0;
+            axi_if.man.rready = 1;
+            while(~axi_if.man.rvalid) @(posedge clk);
+            // rdata = axi_if.man.rdata;
         end
     endtask
     

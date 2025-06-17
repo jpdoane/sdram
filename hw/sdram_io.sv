@@ -3,7 +3,7 @@
 module sdram_io
 (
     // internal io w/ core
-    input logic clk, rst,
+    input logic clk,
     sdram_dev_if.sub dev_if,
 
     // external pin io
