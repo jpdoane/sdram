@@ -12,7 +12,7 @@ SYN_FILES += $(SDRAM_HDL)/axil_sdram.sv
 SYN_FILES += $(SDRAM_HDL)/sdram_core.sv
 SYN_FILES += $(SDRAM_HDL)/sdram_ref.sv
 SYN_FILES += $(ROOT)/sdram_io.sv
-SYN_FILES +=  $(ROOT)/top.sv
+SYN_FILES +=  $(ROOT)/top_combo.sv
 FPGA_TOP = zynq_sdram
 
 # constraints
