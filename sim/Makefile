@@ -7,6 +7,7 @@ SIMCOMPFLAGS := -g2012
 SIMFLAGS := 
 
 SRCS = ../hdl/sdram_core.sv
+SRCS += ../hdl/sdram_ref.sv
 SRCS += ../hdl/sdram_if.sv
 SRCS += ../hdl/sdram_arb.sv
 SRCS += ../hdl/axil_sdram.sv
@@ -36,6 +37,9 @@ testaxi: $(OBJDIR)/Vsdram_axil_tb
 	$< $(VERILATOR_RUN_FLAGS)
 
 testarb: $(OBJDIR)/Vsdram_arb_tb
+	$< $(VERILATOR_RUN_FLAGS)
+
+testref: $(OBJDIR)/Vsdram_ref_tb
 	$< $(VERILATOR_RUN_FLAGS)
 
 view: $(VCD)

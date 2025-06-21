@@ -1,0 +1,12 @@
+0011 ACT                
+0010 PRC          
+0100 WR                 
+0101 RD                 
+0000 MOD                
+0111 NOP                
+0110 BST         
+0001 AREF       
+0001 SELF_REFRESH_ENTRY 
+0110 SELF_REFRESH_EXIT  
+0110 ACTIVE_POWER_DOWN  
+0110 POWER_DOWN_EXIT    

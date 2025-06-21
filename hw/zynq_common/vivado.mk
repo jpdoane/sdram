@@ -64,8 +64,6 @@ uniq_base = $(if $1,$(call uniq_base,$(foreach f,$1,$(if $(filter-out $(notdir $
 SYN_FILES := $(call uniq_base,$(call process_f_files,$(SYN_FILES)))
 INC_FILES := $(call uniq_base,$(call process_f_files,$(INC_FILES)))
 
-ILA_TCL=$(ZYNQ_COMMON)/insert_ila.tcl
-
 ###################################################################
 # Main Targets
 #
@@ -95,6 +93,9 @@ vivado: $(PROJECTFILE)
 
 clean::
 	rm -rf $(BUILD)
+	rm -rf .Xil
+	rm *.jou
+	rm *.log
 	
 # -rm -rf *.bit *.bin *.ltx *.xsa program.tcl generate_mcs.tcl *.mcs *.prm flash.tcl
 # -rm -rf *_utilization.rpt *_utilization_hierarchical.rpt
@@ -112,7 +113,7 @@ distclean:: clean
 # create fresh project if Makefile or IP files have changed
 # create_project.tcl: Makefile $(XCI_FILES) $(IP_TCL_FILES)
 
-$(BUILD)/create_project.tcl: $(XCI_FILES) $(IP_TCL_FILES)
+$(BUILD)/create_project.tcl: $(XCI_FILES) $(IP_TCL_FILES) $(XDC_FILES)
 	-mkdir $(BUILD)
 	rm -rf $(BUILD)/defines.v
 	touch $(BUILD)/defines.v
@@ -121,44 +122,51 @@ $(BUILD)/create_project.tcl: $(XCI_FILES) $(IP_TCL_FILES)
 	echo "add_files -fileset sources_1 defines.v $(SYN_FILES)" >> $@
 	echo "set_property top $(FPGA_TOP) [current_fileset]" >> $@
 	echo "add_files -fileset constrs_1 $(XDC_FILES)" >> $@
+	echo "import_files -fileset constrs_1 $(XDC_FILES)" >> $@
 	for x in $(XCI_FILES); do echo "import_ip $$x" >> $@; done
 	for x in $(IP_TCL_FILES); do echo "source $$x" >> $@; done
-	for x in $(CONFIG_TCL_FILES); do echo "source $$x" >> $@; done
+
+# for x in $(CONFIG_TCL_FILES); do echo "source $$x" >> $@; done
 
 # source config TCL scripts if any source file has changed
-$(BUILD)/update_config.tcl: $(CONFIG_TCL_FILES) $(SYN_FILES) $(INC_FILES) $(XDC_FILES)
-	echo "open_project -quiet $(PROJECTFILE)" > $@
-	for x in $(CONFIG_TCL_FILES); do echo "source $$x" >> $@; done
+# $(BUILD)/update_config.tcl: $(CONFIG_TCL_FILES) $(SYN_FILES) $(INC_FILES) $(XDC_FILES)
+# 	echo "open_project -quiet $(PROJECTFILE)" > $@
+# 	for x in $(CONFIG_TCL_FILES); do echo "source $$x" >> $@; done
 
-$(PROJECTFILE): $(BUILD)/create_project.tcl $(BUILD)/update_config.tcl
+$(BUILD)/update_config.tcl:
+	touch $(BUILD)/update_config.tcl
+
+$(PROJECTFILE): $(BUILD)/create_project.tcl
 	cd $(BUILD); vivado -nojournal -nolog -mode batch $(foreach x,$?,-source $x)
 
 # synthesis run
-$(BUILD)/$(PROJECT).runs/synth_1/$(PROJECT).dcp: $(BUILD)/create_project.tcl $(BUILD)/update_config.tcl $(SYN_FILES) $(INC_FILES) $(XDC_FILES) | $(PROJECTFILE)
+$(BUILD)/$(PROJECT).runs/synth_1/$(PROJECT).dcp: $(SYN_FILES) $(INC_FILES) $(XDC_FILES) | $(PROJECTFILE)
 	echo "open_project $(PROJECTFILE)" > $(BUILD)/run_synth.tcl
+	echo "import_files -force -fileset constrs_1 $(XDC_FILES)" >> $(BUILD)/run_synth.tcl
 	echo "reset_run synth_1" >> $(BUILD)/run_synth.tcl
-	echo "launch_runs -jobs 4 synth_1" >> $(BUILD)/run_synth.tcl
+	echo "launch_runs -jobs 8 synth_1" >> $(BUILD)/run_synth.tcl
 	echo "wait_on_run synth_1" >> $(BUILD)/run_synth.tcl
+	echo "open_run synth_1" >> $(BUILD)/run_synth.tcl
+	echo "source $(ZYNQ_COMMON)/insert_ila.tcl" >> $(BUILD)/run_synth.tcl
 	cd $(BUILD); vivado -nojournal -nolog -mode batch -source $(BUILD)/run_synth.tcl
 
-# add ila
-$(BUILD)/debug_nets.ltx: $(BUILD)/$(PROJECT).runs/synth_1/$(PROJECT).dcp
-	echo "open_project $(PROJECTFILE)" > $(BUILD)/add_ila.tcl
-	echo "open_run synth_1" >> $(BUILD)/add_ila.tcl
-	echo "source $(ILA_TCL)" >> $(BUILD)/add_ila.tcl
-	echo "batch_insert_ila 1024" >> $(BUILD)/add_ila.tcl
-	cd $(BUILD); vivado -nojournal -nolog -mode batch -source $(BUILD)/add_ila.tcl
+# synthesis run
+update_debug:
+	echo "open_project $(PROJECTFILE)" > $(BUILD)/temp.tcl
+	echo "open_run synth_1" >> $(BUILD)/temp.tcl
+	echo "source $(ZYNQ_COMMON)/insert_ila.tcl" >> $(BUILD)/temp.tcl
+	cd $(BUILD); vivado -nojournal -nolog -mode batch -source $(BUILD)/temp.tcl
 
 # implementation run
-$(BUILD)/$(PROJECT).runs/impl_1/$(PROJECT)_routed.dcp: $(BUILD)/$(PROJECT).runs/synth_1/$(PROJECT).dcp $(BUILD)/debug_nets.ltx
+$(BUILD)/$(PROJECT).runs/impl_1/$(PROJECT)_routed.dcp: $(BUILD)/$(PROJECT).runs/synth_1/$(PROJECT).dcp
 	echo "open_project $(PROJECTFILE)" > $(BUILD)/run_impl.tcl
 	echo "reset_run impl_1" >> $(BUILD)/run_impl.tcl
-	echo "launch_runs -jobs 4 impl_1" >> $(BUILD)/run_impl.tcl
+	echo "launch_runs -jobs 8 impl_1" >> $(BUILD)/run_impl.tcl
 	echo "wait_on_run impl_1" >> $(BUILD)/run_impl.tcl
 	echo "open_run impl_1" >> $(BUILD)/run_impl.tcl
 	echo "report_utilization -file $(PROJECT)_utilization.rpt" >> $(BUILD)/run_impl.tcl
 	echo "report_utilization -hierarchical -file $(PROJECT)_utilization_hierarchical.rpt" >> $(BUILD)/run_impl.tcl
-	cd $(BUILD); vivado -nojournal -nolog -mode batch -source $(BUILD)/run_impl.tcl
+	cd $(BUILD); vivado -mode batch -source $(BUILD)/run_impl.tcl
 
 # output files (including potentially bit, bin, ltx, and xsa)
 $(BUILD)/$(PROJECT).bit $(BUILD)/$(PROJECT).bin $(BUILD)/$(PROJECT).ltx $(BUILD)/$(PROJECT).xsa: $(BUILD)/$(PROJECT).runs/impl_1/$(PROJECT)_routed.dcp
@@ -203,6 +211,18 @@ $(BUILD)/$(PROJECT).mcs $(BUILD)/$(PROJECT).prm: $(BUILD)/$(PROJECT).bit
 	for x in .mcs .prm; \
 	do cp $(BUILD)/$*$$x rev/$*_rev$$COUNT$$x; \
 	echo "Output: rev/$*_rev$$COUNT$$x"; done;
+
+debug:
+	echo "open_hw_manager" > $(BUILD)/debug.tcl
+	echo "connect_hw_server -allow_non_jtag" >> $(BUILD)/debug.tcl
+	echo "open_hw_target" >> $(BUILD)/debug.tcl
+	echo "current_hw_device [get_hw_devices $(DEVICE_SHORT)_1]" >> $(BUILD)/debug.tcl
+	echo "refresh_hw_device -update_hw_probes false [lindex [get_hw_devices $(DEVICE_SHORT)_1] 0]" >> $(BUILD)/debug.tcl
+	echo "set_property PROBES.FILE {$(BUILD)/debug_nets.ltx} [get_hw_devices $(DEVICE_SHORT)_1]" >> $(BUILD)/debug.tcl
+	echo "set_property FULL_PROBES.FILE {$(BUILD)/debug_nets.ltx} [get_hw_devices $(DEVICE_SHORT)_1]" >> $(BUILD)/debug.tcl
+	echo "refresh_hw_device [lindex [get_hw_devices $(DEVICE_SHORT)_1] 0]" >> $(BUILD)/debug.tcl
+	cd $(BUILD); vivado -nojournal -nolog -source $(BUILD)/debug.tcl &
+
 
 # flash: $(PROJECT).mcs $(PROJECT).prm
 # 	echo "open_hw_manager" > flash.tcl

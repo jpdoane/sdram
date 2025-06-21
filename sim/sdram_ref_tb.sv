@@ -1,6 +1,6 @@
 `timescale 1ns / 100ps
 
-module sdram_tb;
+module sdram_ref_tb;
 
     logic clk, rst;
 
@@ -9,7 +9,6 @@ module sdram_tb;
     localparam real SDRAM_MHZ    = 50;
     localparam int ADDR_WIDTH    = 32;
     localparam int SDADDR_WIDTH  = 24;
-    localparam int COL_WIDTH     = 9;
     localparam int CAS_LATENCY   = 2;
 
     parameter DEBUG_SDRAM         = 1;
@@ -33,8 +32,8 @@ module sdram_tb;
         $dumpfile("sdram.vcd");
         $dumpvars(0,sdram_core_tb);
         $dumpon;
-        #3000000;
-        $finish;
+        // #110000;
+        // $finish;
      end
     
     initial begin
@@ -52,58 +51,63 @@ module sdram_tb;
     wire #QTR_CLK_PERIOD sdram_clk = clk; 
 
     sdram_ctrl_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) ctrl_if();
-    sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) dev_if();
+    sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH)) dev_if();
     
     logic [ADDR_WIDTH-1:0] addr;
     logic [DATA_WIDTH-1:0] read_data, write_data;
+    int n;
     always begin
         while(rst) @(posedge clk);
     
         repeat(10) begin
-            addr = $urandom();
-            write_data = $urandom();
+            for (int n = 0; n < 16; n++) begin
+                addr = n << 2;
+                write_data = 32'hab00cd00 + (n<<16) + n;
 
-            // write(ctrl_if, clk, addr, write_data);
-            ctrl_if.addr = addr;
-            ctrl_if.write_data = write_data;
-            ctrl_if.wr = '1;
-            while(~ctrl_if.rdy) @(posedge clk);
-            @(posedge clk);
-            ctrl_if.wr = '0;
-            ctrl_if.write_data = 0;
-            while(~ctrl_if.wvalid) @(posedge clk);
-            $display("at time %t Wrote 0x%0x to 0x%0x", $time, write_data, addr);
-            
-            // read(ctrl_if, clk, addr, read_data);
-            ctrl_if.addr = addr;
-            ctrl_if.rd = 1;
-            while(~ctrl_if.rdy) @(posedge clk);
-            @(posedge clk);
-            ctrl_if.rd = 0;
-            while(~ctrl_if.rvalid) @(posedge clk);
-            read_data = ctrl_if.read_data;
-            if(read_data == write_data) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, read_data, addr);
-            else $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x, expected 0x%0x", $time, read_data, addr, write_data);
+                // write(ctrl_if, clk, addr, write_data);
+                ctrl_if.addr = addr;
+                ctrl_if.write_data = write_data;
+                ctrl_if.wr = '1;
+                while(~ctrl_if.rdy) @(posedge clk);
+                @(posedge clk);
+                ctrl_if.wr = '0;
+                ctrl_if.write_data = 0;
+                while(~ctrl_if.wvalid) @(posedge clk);
+                $display("at time %t Wrote 0x%0x to 0x%0x", $time, write_data, addr);
+            end            
+            for (int n = 0; n < 16; n++) begin
+                addr = n << 2;
+                write_data = 32'hab00cd00 + (n<<16) + n;
 
+                ctrl_if.addr = addr;
+                ctrl_if.rd = 1;
+                while(~ctrl_if.rdy) @(posedge clk);
+                @(posedge clk);
+                ctrl_if.rd = 0;
+                while(~ctrl_if.rvalid) @(posedge clk);
+                read_data = ctrl_if.read_data;
+                if(read_data == write_data) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, read_data, addr);
+                else $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x, expected 0x%0x", $time, read_data, addr, write_data);
+            end            
 
         end
         
         $finish;
     end
 
-    sdram_core
+    sdram_ref
     #(
-        .SDRAM_MHZ      (SDRAM_MHZ),
-        .CAS_LATENCY    (CAS_LATENCY),
-        .tRC_NS         (tRC_NS),
-        .tRAS_NS        (tRAS_NS),
-        .tRCD_NS        (tRCD_NS),
-        .tRP_NS         (tRP_NS),
-        .tXSR_NS        (tXSR_NS),
-        .tREF_NS        (tREF_NS),
-        .DELAY_WR       (DELAY_WR),
-        .DELAY_RRD      (DELAY_RRD),
-        .DELAY_RSC      (DELAY_RSC)
+        // .SDRAM_MHZ      (SDRAM_MHZ),
+        // .CAS_LATENCY    (CAS_LATENCY),
+        // .tRC_NS         (tRC_NS),
+        // .tRAS_NS        (tRAS_NS),
+        // .tRCD_NS        (tRCD_NS),
+        // .tRP_NS         (tRP_NS),
+        // .tXSR_NS        (tXSR_NS),
+        // .tREF_NS        (tREF_NS),
+        // .DELAY_WR       (DELAY_WR),
+        // .DELAY_RRD      (DELAY_RRD),
+        // .DELAY_RSC      (DELAY_RSC),        
         // .STARTUP_US     (1)
     )
     u_sdram_controller(
@@ -113,6 +117,7 @@ module sdram_tb;
         .dev_if   (dev_if.sub)
     );
     
+
     MT48LC8M16A2 #(
     .Debug(DEBUG_SDRAM),
     .tMRD   (DELAY_RSC*CLK_PERIOD),

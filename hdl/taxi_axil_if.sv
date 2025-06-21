@@ -167,3 +167,29 @@ interface taxi_axil_if #(
     );
 
 endinterface
+
+
+// module axi_probe (
+//         input logic clk,
+//         taxi_axil_if.mon axil_if );
+ 
+//     (* keep="true",mark_debug="true" *)  wire [axil_if.ADDR_W-1:0]    awaddr = axil_if.awaddr;
+//     (* keep="true",mark_debug="true" *)  wire                 awvalid = axil_if.awvalid;
+//     (* keep="true",mark_debug="true" *)  wire                 awready = axil_if.awready;
+//     (* keep="true",mark_debug="true" *)  wire [axil_if.DATA_W-1:0]    wdata = axil_if.wdata;
+//     (* keep="true",mark_debug="true" *)  wire [axil_if.STRB_W-1:0]    wstrb = axil_if.wstrb;
+//     (* keep="true",mark_debug="true" *)  wire                 wvalid = axil_if.wvalid;
+//     (* keep="true",mark_debug="true" *)  wire                 wready = axil_if.wready;
+//     (* keep="true",mark_debug="true" *)  wire [1:0]           bresp = axil_if.bresp;
+//     (* keep="true",mark_debug="true" *)  wire [axil_if.BUSER_W-1:0]   buser = axil_if.buser;
+//     (* keep="true",mark_debug="true" *)  wire                 bvalid = axil_if.bvalid;
+//     (* keep="true",mark_debug="true" *)  wire                 bready = axil_if.bready;
+//     (* keep="true",mark_debug="true" *)  wire [axil_if.ADDR_W-1:0]    araddr = axil_if.araddr;
+//     (* keep="true",mark_debug="true" *)  wire                 arvalid = axil_if.arvalid;
+//     (* keep="true",mark_debug="true" *)  wire                 arready = axil_if.arready;
+//     (* keep="true",mark_debug="true" *)  wire [axil_if.DATA_W-1:0]    rdata = axil_if.rdata;
+//     (* keep="true",mark_debug="true" *)  wire [1:0]           rresp = axil_if.rresp;
+//     (* keep="true",mark_debug="true" *)  wire                 rvalid = axil_if.rvalid;
+//     (* keep="true",mark_debug="true" *)  wire                 rready = axil_if.rready;
+
+// endmodule

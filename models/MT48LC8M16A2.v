@@ -106,13 +106,13 @@ module MT48LC8M16A2
     reg                           CkeZ, Sys_clk;
  
     // Commands Decode
-    wire      Active_enable    = ~sdram_dev_if.cs & ~sdram_dev_if.ras &  sdram_dev_if.cas &  sdram_dev_if.we;
-    wire      Aref_enable      = ~sdram_dev_if.cs & ~sdram_dev_if.ras & ~sdram_dev_if.cas &  sdram_dev_if.we;
-    wire      Burst_term       = ~sdram_dev_if.cs &  sdram_dev_if.ras &  sdram_dev_if.cas & ~sdram_dev_if.we;
-    wire      Mode_reg_enable  = ~sdram_dev_if.cs & ~sdram_dev_if.ras & ~sdram_dev_if.cas & ~sdram_dev_if.we;
-    wire      Prech_enable     = ~sdram_dev_if.cs & ~sdram_dev_if.ras &  sdram_dev_if.cas & ~sdram_dev_if.we;
-    wire      Read_enable      = ~sdram_dev_if.cs &  sdram_dev_if.ras & ~sdram_dev_if.cas &  sdram_dev_if.we;
-    wire      Write_enable     = ~sdram_dev_if.cs &  sdram_dev_if.ras & ~sdram_dev_if.cas & ~sdram_dev_if.we;
+    wire      Active_enable    = ~sdram_dev_if.cs & (sdram_dev_if.cmd == 3'b011);   // ~sdram_dev_if.ras &  sdram_dev_if.cas &  sdram_dev_if.we
+    wire      Aref_enable      = ~sdram_dev_if.cs & (sdram_dev_if.cmd == 3'b001);   // ~sdram_dev_if.ras & ~sdram_dev_if.cas &  sdram_dev_if.we
+    wire      Burst_term       = ~sdram_dev_if.cs & (sdram_dev_if.cmd == 3'b110);   //  sdram_dev_if.ras &  sdram_dev_if.cas & ~sdram_dev_if.we
+    wire      Mode_reg_enable  = ~sdram_dev_if.cs & (sdram_dev_if.cmd == 3'b000);   // ~sdram_dev_if.ras & ~sdram_dev_if.cas & ~sdram_dev_if.we
+    wire      Prech_enable     = ~sdram_dev_if.cs & (sdram_dev_if.cmd == 3'b010);   // ~sdram_dev_if.ras &  sdram_dev_if.cas & ~sdram_dev_if.we
+    wire      Read_enable      = ~sdram_dev_if.cs & (sdram_dev_if.cmd == 3'b101);   //  sdram_dev_if.ras & ~sdram_dev_if.cas &  sdram_dev_if.we
+    wire      Write_enable     = ~sdram_dev_if.cs & (sdram_dev_if.cmd == 3'b100);   //  sdram_dev_if.ras & ~sdram_dev_if.cas & ~sdram_dev_if.we
  
     // Burst Length Decode
     wire      Burst_length_1   = ~Mode_reg[2] & ~Mode_reg[1] & ~Mode_reg[0];

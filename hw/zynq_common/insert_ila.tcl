@@ -27,13 +27,13 @@ proc batch_insert_ila { depth } {
             if { [get_property -quiet MARK_DEBUG_VALID $net] != "true" } { 
                 set pin_list [get_pins -of_objects [get_nets -segments $net]]
                 set not_vio_net 1
-                foreach pin $pin_list {
-                    if { [get_property IS_DEBUG_CORE [get_cells -of_object $pin]] == 1 } {
-                        # It seems this net is attached to a debug core (i.e. VIO core) already, so we should skip adding it to the netlist
-                        set not_vio_net 0
-                        break
-                        }
-                    }
+                # foreach pin $pin_list {
+                #     if { [get_property IS_DEBUG_CORE [get_cells -of_object $pin]] == 1 } {
+                #         # It seems this net is attached to a debug core (i.e. VIO core) already, so we should skip adding it to the netlist
+                #         set not_vio_net 0
+                #         break
+                #         }
+                #     }
                 if { $not_vio_net == 1 } { lappend net_list $net; }
             } else { 
                 lappend net_list $net
@@ -213,14 +213,18 @@ proc batch_insert_ila { depth } {
         connect_debug_port ila_1/trig_in [get_nets $trig_out]
         connect_debug_port ila_1/trig_in_ack [get_nets $trig_out_ack]
     } 
-    set project_found [get_projects -quiet] 
-    if { $project_found != "New Project" } {
-        puts "Saving constraints now in project [current_project -quiet]"
-        save_constraints_as debug_constraints.xdc
-    }    
-    ##################################################################
+    # set project_found [get_projects -quiet] 
+    # if { $project_found != "New Project" } {
+    #     puts "Saving constraints now in project [current_project -quiet]"
+    #     save_constraints_as debug_constraints.xdc
+    # }    
+
+    save_constraints
     implement_debug_core
-    ##################################################################
-    # write out probe info file
+
     write_debug_probes -force debug_nets.ltx
+
 } 
+
+batch_insert_ila 256
+

@@ -10,13 +10,13 @@ SYN_FILES += $(SDRAM_HDL)/sdram_if.sv
 SYN_FILES += $(SDRAM_HDL)/taxi_axil_if.sv
 SYN_FILES += $(SDRAM_HDL)/axil_sdram.sv
 SYN_FILES += $(SDRAM_HDL)/sdram_core.sv
+SYN_FILES += $(SDRAM_HDL)/sdram_ref.sv
 SYN_FILES += $(ROOT)/sdram_io.sv
 SYN_FILES +=  $(ROOT)/top.sv
 FPGA_TOP = zynq_sdram
 
 # constraints
 XDC_FILES = $(ZYNQ_COMMON)/artyz7.xdc
-# XDC_FILES += $(ROOT)/debug.xdc
 
 # PS software
 IP_TCL_FILES = $(ZYNQ_COMMON)/zynq_ps.tcl

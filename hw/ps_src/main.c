@@ -26,8 +26,8 @@
 
 // u32 ramval(u32 n) { return 0xdeadbeef + (n<<16); }
 u32 ramval(u32 n){
-    // return n ^ 0xFDB97531;
-    return n;
+    return 0xab00cd00 + (n<<16) + n;
+    // return n;
 }
 
 int main()
@@ -49,8 +49,8 @@ int main()
         for (int n=0; n < Ncheck; n++)
         {
             sdram[n] = ramval(n);
-            xil_printf("write [0x%x] <= 0x%x\r\n", n, ramval(n));
-            usleep(1000000);
+            // xil_printf("write [0x%x] <= 0x%x\r\n", n, ramval(n));
+            usleep(100000);
         }
 
         xil_printf("Reading RAM 0x0...0x%x...\r\n", Ncheck-1);
@@ -64,9 +64,9 @@ int main()
                 valid = 0;
             }
             // else
-            //     xil_printf("read 0x%x\r\n", n);
+                // xil_printf("read 0x%x\r\n", n);
 
-            usleep(1000000);
+            usleep(100000);
 
         }
         if(valid)
@@ -74,7 +74,7 @@ int main()
         else
             xil_printf("RAM has issues :(\r\n");
 
-        usleep(10000);
+        usleep(1000000);
     }
 
     // cleanup_platform();
