@@ -1,6 +1,6 @@
 `timescale 1ns / 100ps
 
-module sdram_tb;
+module sdram_pc_tb;
 
     logic clk, rst;
 
@@ -27,6 +27,7 @@ module sdram_tb;
     localparam real CLK_PERIOD=1000/FREQ_MHZ;
     localparam real HALF_CLK_PERIOD=CLK_PERIOD/2;
     localparam real QTR_CLK_PERIOD=CLK_PERIOD/4;
+    localparam real OFFSET_CLK_PERIOD=CLK_PERIOD*3/4;
     
     initial
      begin
@@ -49,49 +50,54 @@ module sdram_tb;
         clk = ~clk;
     end
     // clock ram with 90deg lag
-    wire #QTR_CLK_PERIOD sdram_clk = clk; 
+    wire #OFFSET_CLK_PERIOD sdram_clk = clk; 
 
     sdram_ctrl_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) ctrl_if();
     sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) dev_if();
     
     logic [ADDR_WIDTH-1:0] addr;
     logic [DATA_WIDTH-1:0] read_data, write_data;
+    int n;
     always begin
         while(rst) @(posedge clk);
     
-        repeat(10) begin
-            addr = $urandom();
-            write_data = $urandom();
+        repeat(1) begin
+            for (int n = 0; n < 16; n++) begin
+                addr = n == 15 ? 0'h800000 : n << 2;
+                write_data = n;
 
-            // write(ctrl_if, clk, addr, write_data);
-            ctrl_if.addr = addr;
-            ctrl_if.write_data = write_data;
-            ctrl_if.wr = '1;
-            while(~ctrl_if.rdy) @(posedge clk);
-            @(posedge clk);
-            ctrl_if.wr = '0;
-            ctrl_if.write_data = 0;
-            while(~ctrl_if.wvalid) @(posedge clk);
-            $display("at time %t Wrote 0x%0x to 0x%0x", $time, write_data, addr);
-            
-            // read(ctrl_if, clk, addr, read_data);
-            ctrl_if.addr = addr;
-            ctrl_if.rd = 1;
-            while(~ctrl_if.rdy) @(posedge clk);
-            @(posedge clk);
-            ctrl_if.rd = 0;
-            while(~ctrl_if.rvalid) @(posedge clk);
-            read_data = ctrl_if.read_data;
-            if(read_data == write_data) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, read_data, addr);
-            else $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x, expected 0x%0x", $time, read_data, addr, write_data);
+                // write(ctrl_if, clk, addr, write_data);
+                ctrl_if.addr = addr;
+                ctrl_if.write_data = write_data;
+                ctrl_if.wr = '1;
+                while(~ctrl_if.rdy) @(posedge clk);
+                @(posedge clk);
+                ctrl_if.wr = '0;
+                ctrl_if.write_data = 0;
+                while(~ctrl_if.wvalid) @(posedge clk);
+                $display("at time %t Wrote 0x%0x to 0x%0x", $time, write_data, addr);
+            end            
+            for (int n = 0; n < 16; n++) begin
+                addr = n == 15 ? 0'h800000 : n << 2;
+                write_data = n;
 
+                ctrl_if.addr = addr;
+                ctrl_if.rd = 1;
+                while(~ctrl_if.rdy) @(posedge clk);
+                @(posedge clk);
+                ctrl_if.rd = 0;
+                while(~ctrl_if.rvalid) @(posedge clk);
+                read_data = ctrl_if.read_data;
+                if(read_data == write_data) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, read_data, addr);
+                else $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x, expected 0x%0x", $time, read_data, addr, write_data);
+            end            
 
         end
         
         $finish;
     end
 
-    sdram_core
+    sdram_core_pc
     #(
         .FREQ_MHZ      (FREQ_MHZ),
         .CAS_LATENCY    (CAS_LATENCY),

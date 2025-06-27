@@ -4,7 +4,7 @@
 `define DELAY(cycles, bits) `MAX(bits'(cycles),bits'(0))
 
 module sdram_core #(
-    parameter real SDRAM_MHZ     = 50,
+    parameter real FREQ_MHZ     = 50,
     parameter int CAS_LATENCY   = 2,
     parameter real STARTUP_US    = 250.0,       // min time in us to hold in startup before initialization
     parameter real tRC_NS        = 60.0,        // min time in ns between row activations (same bank)
@@ -33,8 +33,8 @@ localparam int ROW_WIDTH     = dev_if.ROW_WIDTH;
 
 localparam int CNT_W                = 4;
 localparam int CNT2_W               = 16;
-localparam real CLK_PERIOD_NS       = 1000.0 / SDRAM_MHZ;
-localparam int DELAY_STARTUP        = int'($ceil(STARTUP_US * SDRAM_MHZ));
+localparam real CLK_PERIOD_NS       = 1000.0 / FREQ_MHZ;
+localparam int DELAY_STARTUP        = int'($ceil(STARTUP_US * FREQ_MHZ));
 localparam int DELAY_REF_INTERVAL   = 350; //int'($ceil(tREF_NS/8192/CLK_PERIOD_NS));
 localparam int DELAY_RC             = int'($ceil(tRC_NS / CLK_PERIOD_NS));
 localparam int DELAY_RCD            = int'($ceil(tRCD_NS/CLK_PERIOD_NS));

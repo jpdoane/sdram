@@ -17,8 +17,8 @@ module sdram_axil_tb();
 
     localparam DEBUG_SDRAM=0;
 
-    localparam real SDRAM_MHZ=50;
-    localparam real CLK_PERIOD=1000/SDRAM_MHZ;
+    localparam real FREQ_MHZ=50;
+    localparam real CLK_PERIOD=1000/FREQ_MHZ;
     localparam real HALF_CLK_PERIOD=CLK_PERIOD/2;
     localparam real QTR_CLK_PERIOD=CLK_PERIOD/4;
     
@@ -48,7 +48,7 @@ module sdram_axil_tb();
 
     sdram_core
     #(
-        .SDRAM_MHZ      (SDRAM_MHZ),
+        .FREQ_MHZ      (FREQ_MHZ),
         .STARTUP_US     (1)
     )
     u_sdram_controller(
@@ -81,20 +81,11 @@ module sdram_axil_tb();
         
         repeat(20) begin
             rnd = $urandom();
-            axi_write(rnd, rnd);
-            axi_read(rnd);
-            if(axi_if.rdata == rnd) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, axi_if.rdata, rnd);
-            else $error("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x", $time, axi_if.rdata, rnd);
-        end
-        $finish;
-    end
 
-    task axi_write;
-        input [31:0] awaddr;
-        input [31:0] wdata; 
-        begin
-            axi_if.man.awaddr = awaddr;
-            axi_if.man.wdata = wdata;
+
+            // axi_write(rnd, rnd);
+            axi_if.man.awaddr = rnd;
+            axi_if.man.wdata = rnd;
             axi_if.man.wstrb = 4'hf;
             axi_if.man.awvalid = 1;
             axi_if.man.wvalid = 1;
@@ -107,14 +98,9 @@ module sdram_axil_tb();
             axi_if.man.wdata = 0;
             axi_if.man.bready = 1;
             while(~axi_if.man.bvalid) @(posedge clk);
-        end
-    endtask
-    
-    task axi_read;
-        input [31:0] araddr;
-        // output [31:0] rdata; 
-        begin
-            axi_if.man.araddr = araddr;
+
+            // axi_read(rnd);
+            axi_if.man.araddr = rnd;
             axi_if.man.arvalid = 1;
             while(~axi_if.man.arready) @(posedge clk);
             @(posedge clk);
@@ -122,8 +108,12 @@ module sdram_axil_tb();
             axi_if.man.araddr = 0;
             axi_if.man.rready = 1;
             while(~axi_if.man.rvalid) @(posedge clk);
-            // rdata = axi_if.man.rdata;
+
+            if(axi_if.rdata == rnd) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, axi_if.rdata, rnd);
+            else $error("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x", $time, axi_if.rdata, rnd);
         end
-    endtask
-    
+        $finish;
+    end
+
+
 endmodule

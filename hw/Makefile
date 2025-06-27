@@ -9,10 +9,10 @@ SDRAM_HDL = $(ROOT)/../hdl
 SYN_FILES += $(SDRAM_HDL)/sdram_if.sv
 SYN_FILES += $(SDRAM_HDL)/taxi_axil_if.sv
 SYN_FILES += $(SDRAM_HDL)/axil_sdram.sv
-SYN_FILES += $(SDRAM_HDL)/sdram_core.sv
-SYN_FILES += $(SDRAM_HDL)/sdram_ref.sv
+# SYN_FILES += $(SDRAM_HDL)/sdram_core.sv
+SYN_FILES += $(SDRAM_HDL)/sdram_core_pc.sv
 SYN_FILES += $(ROOT)/sdram_io.sv
-SYN_FILES +=  $(ROOT)/top_combo.sv
+SYN_FILES +=  $(ROOT)/top.sv
 FPGA_TOP = zynq_sdram
 
 # constraints
@@ -20,6 +20,7 @@ XDC_FILES = $(ZYNQ_COMMON)/artyz7.xdc
 
 # PS software
 IP_TCL_FILES = $(ZYNQ_COMMON)/zynq_ps.tcl
+# IP_TCL_FILES = $(ZYNQ_COMMON)/zynq_ps_ila.tcl
 PS_SOURCE = $(ROOT)/ps_src/main.c
 
 include $(ZYNQ_COMMON)/vivado.mk

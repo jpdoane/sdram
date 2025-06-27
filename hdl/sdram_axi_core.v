@@ -32,77 +32,53 @@
 //                          Generated File
 //-----------------------------------------------------------------
 
-module sdram_ref #(
-    parameter SDRAM_MHZ     = 50
-    // parameter int CAS_LATENCY    = 2,
-    // parameter real STARTUP_US    = 100.0,       // min time in us to hold in startup before initialization
-    // parameter real tRC_NS        = 60.0,        // min time in ns between row activations (same bank)
-    // parameter real tRAS_NS       = 42.0,        // min time in ns from row activation to precharge (same bank)
-    // parameter real tRCD_NS       = 15.0,        // min time in ns from row activation to read/write
-    // parameter real tRP_NS        = 15.0,        // min time in ns from precharge to refresh/activation (same bank)
-    // parameter real tXSR_NS       = 72.0,        // min time in ns from self-refresh exit to activation
-    // parameter real tREF_NS       = 64e6,        // max time in ns to perform all 8k refresh cycles
-    // parameter int DELAY_WR      = 2,           // min clocks between row activations (different bank)
-    // parameter int DELAY_RRD     = 2,           // min clocks between row activations (different bank)
-    // parameter int DELAY_RSC     = 2
-    )(
-    // main clocks
-    input logic clk, rst,
-    sdram_ctrl_if.sub ctrl_if,
-    sdram_dev_if.man dev_if
+module sdram_axi_core
+(
+    // Inputs
+     input           clk_i
+    ,input           rst_i
+    ,input  [  3:0]  inport_wr_i
+    ,input           inport_rd_i
+    ,input  [  7:0]  inport_len_i
+    ,input  [ 31:0]  inport_addr_i
+    ,input  [ 31:0]  inport_write_data_i
+    ,input  [ 15:0]  sdram_data_input_i
+
+    // Outputs
+    ,output          inport_accept_o
+    ,output          inport_ack_o
+    ,output          inport_error_o
+    ,output [ 31:0]  inport_read_data_o
+    ,output          sdram_clk_o
+    ,output          sdram_cke_o
+    ,output          sdram_cs_o
+    ,output          sdram_ras_o
+    ,output          sdram_cas_o
+    ,output          sdram_we_o
+    ,output [  1:0]  sdram_dqm_o
+    ,output [ 12:0]  sdram_addr_o
+    ,output [  1:0]  sdram_ba_o
+    ,output [ 15:0]  sdram_data_output_o
+    ,output          sdram_data_out_en_o
 );
 
-localparam SDRAM_ROW_W = dev_if.ROW_WIDTH;
-localparam SDRAM_COL_W = dev_if.COL_WIDTH;
-localparam SDRAM_BANK_W = dev_if.BANK_WIDTH;
-localparam SDRAM_ADDR_W  = dev_if.ADDR_WIDTH;
-localparam SDRAM_READ_LATENCY     = 2;
-
-// map ctrl_if
-wire           clk_i = clk;
-wire           rst_i = rst;
-wire  [  3:0]  inport_wr_i = ctrl_if.wr;
-wire           inport_rd_i = ctrl_if.rd;
-wire  [ 31:0]  inport_addr_i = ctrl_if.addr;
-wire  [ 31:0]  inport_write_data_i = ctrl_if.write_data;
-wire          inport_accept_o;
-wire          inport_ack_o;
-wire          inport_error_o;
-wire [ 31:0]  inport_read_data_o;
-
-assign ctrl_if.rdy = inport_accept_o;
-assign ctrl_if.rvalid = inport_ack_o;
-assign ctrl_if.wvalid = inport_ack_o;
-assign ctrl_if.error = inport_error_o;
-assign ctrl_if.read_data = inport_read_data_o;
 
 
-// map dev_if
-wire sdram_clk_o;
-wire sdram_cke_o;
-wire [1:0] sdram_dqm_o;
-wire [SDRAM_ROW_W-1:0] sdram_addr_o;
-wire [1:0] sdram_ba_o;
-wire [15:0] sdram_data_output_o;
-wire sdram_data_out_en_o;
-wire  [ 15:0]  sdram_data_input_i = dev_if.read_data;
-assign dev_if.cke = sdram_cke_o;
-assign dev_if.cs = command_q[3];
-assign dev_if.cmd = command_q[2:0];
-assign dev_if.dqm = sdram_dqm_o;
-assign dev_if.addr = sdram_addr_o;
-assign dev_if.ba = sdram_ba_o;
-assign dev_if.write_data = sdram_data_output_o;
-assign dev_if.wr_en = sdram_data_out_en_o;
-
-wire [2:0] sd_cmd = command_q[2:0];
+//-----------------------------------------------------------------
+// Key Params
+//-----------------------------------------------------------------
+parameter SDRAM_MHZ              = 50;
+parameter SDRAM_ADDR_W           = 24;
+parameter SDRAM_COL_W            = 9;
+parameter SDRAM_READ_LATENCY     = 3;
 
 //-----------------------------------------------------------------
 // Defines / Local params
 //-----------------------------------------------------------------
-
+localparam SDRAM_BANK_W          = 2;
 localparam SDRAM_DQM_W           = 2;
 localparam SDRAM_BANKS           = 2 ** SDRAM_BANK_W;
+localparam SDRAM_ROW_W           = SDRAM_ADDR_W - SDRAM_COL_W - SDRAM_BANK_W;
 localparam SDRAM_REFRESH_CNT     = 2 ** SDRAM_ROW_W;
 localparam SDRAM_START_DELAY     = 100000 / (1000 / SDRAM_MHZ); // 100uS
 localparam SDRAM_REFRESH_CYCLES  = (64000*SDRAM_MHZ) / SDRAM_REFRESH_CNT-1;
@@ -148,13 +124,13 @@ localparam SDRAM_TRFC_CYCLES = (60 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
 //-----------------------------------------------------------------
 // External Interface
 //-----------------------------------------------------------------
-wire [ 31:0]  ram_addr_w       = inport_addr_i;
-wire [  3:0]  ram_wr_w         = inport_wr_i;
-wire          ram_rd_w         = inport_rd_i;
-wire          ram_accept_w;
-wire [ 31:0]  ram_write_data_w = inport_write_data_i;
-wire [ 31:0]  ram_read_data_w;
-wire          ram_ack_w;
+(* mark_debug = "true" *) wire [ 31:0]  ram_addr_w       = inport_addr_i;
+(* mark_debug = "true" *) wire [  3:0]  ram_wr_w         = inport_wr_i;
+(* mark_debug = "true" *) wire          ram_rd_w         = inport_rd_i;
+(* mark_debug = "true" *) wire          ram_accept_w;
+(* mark_debug = "true" *) wire [ 31:0]  ram_write_data_w = inport_write_data_i;
+(* mark_debug = "true" *) wire [ 31:0]  ram_read_data_w;
+(* mark_debug = "true" *) wire          ram_ack_w;
 
 wire          ram_req_w = (ram_wr_w != 4'b0) | ram_rd_w;
 
@@ -167,16 +143,24 @@ assign inport_accept_o    = ram_accept_w;
 // Registers / Wires
 //-----------------------------------------------------------------
 
-reg [CMD_W-1:0]        command_q;
-reg [SDRAM_ROW_W-1:0]  addr_q;
-reg [SDRAM_DATA_W-1:0] data_q;
-reg                    data_rd_en_q;
-reg [SDRAM_DQM_W-1:0]  dqm_q;
-reg                    cke_q;
-reg [SDRAM_BANK_W-1:0] bank_q;
+// Xilinx placement pragmas:
+//synthesis attribute IOB of command_q is "TRUE"
+//synthesis attribute IOB of addr_q is "TRUE"
+//synthesis attribute IOB of dqm_q is "TRUE"
+//synthesis attribute IOB of cke_q is "TRUE"
+//synthesis attribute IOB of bank_q is "TRUE"
+//synthesis attribute IOB of data_q is "TRUE"
+
+(* IOB = "TRUE" *)   reg [CMD_W-1:0]        command_q;
+(* IOB = "TRUE" *)   reg [SDRAM_ROW_W-1:0]  addr_q;
+(* IOB = "TRUE" *)   reg [SDRAM_DATA_W-1:0] data_q;
+                     reg                    data_rd_en_q;
+(* IOB = "TRUE" *)   reg [SDRAM_DQM_W-1:0]  dqm_q;
+(* IOB = "TRUE" *)   reg                    cke_q;
+(* IOB = "TRUE" *)   reg [SDRAM_BANK_W-1:0] bank_q;
 
 // Buffer half word during read and write commands
-reg [SDRAM_DATA_W-1:0] data_buffer_q;
+(* mark_debug = "true" *) reg [SDRAM_DATA_W-1:0] data_buffer_q;
 reg [SDRAM_DQM_W-1:0]  dqm_buffer_q;
 
 wire [SDRAM_DATA_W-1:0] sdram_data_in_w;
@@ -186,7 +170,7 @@ reg                    refresh_q;
 reg [SDRAM_BANKS-1:0]  row_open_q;
 reg [SDRAM_ROW_W-1:0]  active_row_q[0:SDRAM_BANKS-1];
 
-reg  [STATE_W-1:0]     state_q;
+(* mark_debug = "true" *) reg  [STATE_W-1:0]     state_q;
 reg  [STATE_W-1:0]     next_state_r;
 reg  [STATE_W-1:0]     target_state_r;
 reg  [STATE_W-1:0]     target_state_q;
@@ -476,14 +460,14 @@ else if (state_q == STATE_REFRESH)
 // Input sampling
 //-----------------------------------------------------------------
 
-reg [SDRAM_DATA_W-1:0] sample_data0_q;
+(* mark_debug = "true" *) reg [SDRAM_DATA_W-1:0] sample_data0_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     sample_data0_q <= {SDRAM_DATA_W{1'b0}};
 else
     sample_data0_q <= sdram_data_in_w;
 
-reg [SDRAM_DATA_W-1:0] sample_data_q;
+(* mark_debug = "true" *)  reg [SDRAM_DATA_W-1:0] sample_data_q;
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
     sample_data_q <= {SDRAM_DATA_W{1'b0}};
@@ -665,7 +649,7 @@ end
 //-----------------------------------------------------------------
 // Record read events
 //-----------------------------------------------------------------
-reg [SDRAM_READ_LATENCY+1:0]  rd_q;
+(* mark_debug = "true" *) reg [SDRAM_READ_LATENCY+1:0]  rd_q;
 
 always @ (posedge clk_i or posedge rst_i)
 if (rst_i)
@@ -722,6 +706,10 @@ assign sdram_data_output_o   =  data_q;
 assign sdram_data_in_w       = sdram_data_input_i;
 
 assign sdram_cke_o  = cke_q;
+assign sdram_cs_o   = command_q[3];
+assign sdram_ras_o  = command_q[2];
+assign sdram_cas_o  = command_q[1];
+assign sdram_we_o   = command_q[0];
 assign sdram_dqm_o  = dqm_q;
 assign sdram_ba_o   = bank_q;
 assign sdram_addr_o = addr_q;
@@ -749,5 +737,6 @@ begin
     endcase
 end
 `endif
+
 
 endmodule

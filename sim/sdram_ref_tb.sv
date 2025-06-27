@@ -6,7 +6,7 @@ module sdram_ref_tb;
 
     localparam int DATA_WIDTH    = 32;
 
-    localparam real SDRAM_MHZ    = 50;
+    localparam real FREQ_MHZ    = 50;
     localparam int ADDR_WIDTH    = 32;
     localparam int SDADDR_WIDTH  = 24;
     localparam int CAS_LATENCY   = 2;
@@ -23,13 +23,13 @@ module sdram_ref_tb;
     localparam int DELAY_WR      = 2;       // min clocks write recovery time
     localparam int DELAY_RSC     = 2;       // min clocks for mode register reset
 
-    localparam real CLK_PERIOD=1000/SDRAM_MHZ;
+    localparam real CLK_PERIOD=1000/FREQ_MHZ;
     localparam real HALF_CLK_PERIOD=CLK_PERIOD/2;
     localparam real QTR_CLK_PERIOD=CLK_PERIOD/4;
     
     initial
      begin
-        $dumpfile("sdram.vcd");
+        $dumpfile("sdram_ref.vcd");
         $dumpvars(0,sdram_core_tb);
         $dumpon;
         // #110000;
@@ -97,7 +97,7 @@ module sdram_ref_tb;
 
     sdram_ref
     #(
-        // .SDRAM_MHZ      (SDRAM_MHZ),
+        // .FREQ_MHZ      (FREQ_MHZ),
         // .CAS_LATENCY    (CAS_LATENCY),
         // .tRC_NS         (tRC_NS),
         // .tRAS_NS        (tRAS_NS),

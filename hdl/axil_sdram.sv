@@ -1,5 +1,7 @@
 `timescale 1ns / 100ps
 
+`define DEBUG (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)
+
 module axil_sdram
 (
     input  wire logic    clk,
@@ -22,22 +24,46 @@ assign rd_ack = rd_req & sdram_ctrl.rdy;
 assign wr_ack = wr_req & sdram_ctrl.rdy;
 
 always_ff @(posedge clk) begin
-    if(axi_if.rready) begin
-        rdata <= '0;
-        rvalid <= 1'b0;
-    end
+
     if(sdram_ctrl.rvalid) begin
         rdata[DATA_WIDTH-1:0] <= sdram_ctrl.read_data;
         rvalid <= 1'b1;
+    end else if(axi_if.rready) begin
+        rdata <= '0;
+        rvalid <= 1'b0;
     end
 
-    if (axi_if.bready) bvalid <= 0;
     if (sdram_ctrl.wvalid) bvalid <= 1;
+    else if (axi_if.bready) bvalid <= 0;
 
     if (rst) begin
         rdata <=  '0;
         rvalid <= 1'b0;
         bvalid <= 1'b0;
+    end
+end
+
+`DEBUG logic [31:0] read_ctr;
+`DEBUG logic [31:0] write_ctr;
+always_ff @(posedge clk) begin
+
+    if(read_ctr != 0) read_ctr <= read_ctr+1;
+    if(axi_if.arvalid) read_ctr <= 1;
+    if(rvalid) read_ctr <= 0;
+
+    if(write_ctr != 0) write_ctr <= write_ctr+1;
+    if(axi_if.awvalid | axi_if.wvalid) write_ctr <= 1;
+    if(bvalid) write_ctr <= 0;
+
+    // if(axi_if.arvalid&sdram_ctrl.rdy) open_read <= 1;
+    // else if (sdram_ctrl.rvalid) open_read <= 0;
+
+    // if( (axi_if.awvalid | axi_if.wvalid) & sdram_ctrl.rdy) open_write <= 1;
+    // else if (sdram_ctrl.wvalid) open_write <= 0;
+
+    if (rst) begin
+        read_ctr <= '0;
+        write_ctr <= '0;
     end
 end
 

@@ -3,16 +3,18 @@
 `define MAX(a,b) ((a) > (b) ? (a) : (b))
 `define DELAY(cycles, bits) `MAX(bits'(cycles),bits'(0))
 
-module sdram_core #(
-    parameter real SDRAM_MHZ     = 50,
+`define DEBUG (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)
+
+module sdram_core_pc #(
+    parameter real FREQ_MHZ     = 50,
     parameter int CAS_LATENCY   = 2,
-    parameter real STARTUP_US    = 250.0,       // min time in us to hold in startup before initialization
+    parameter real STARTUP_US    = 200.0,       // min time in us to hold in startup before initialization
     parameter real tRC_NS        = 60.0,        // min time in ns between row activations (same bank)
     parameter real tRAS_NS       = 42.0,        // min time in ns from row activation to precharge (same bank)
     parameter real tRCD_NS       = 15.0,        // min time in ns from row activation to read/write
     parameter real tRP_NS        = 15.0,        // min time in ns from precharge to refresh/activation (same bank)
     parameter real tXSR_NS       = 72.0,        // min time in ns from self-refresh exit to activation
-    parameter real tREF_NS       = 40e6,        // max time in ns to perform all 8k refresh cycles
+    parameter real tREF_NS       = 64e6,        // max time in ns to perform all 8k refresh cycles
     parameter int DELAY_WR      = 2,           // min clocks between row activations (different bank)
     parameter int DELAY_RRD     = 2,           // min clocks between row activations (different bank)
     parameter int DELAY_RSC     = 2
@@ -25,6 +27,8 @@ module sdram_core #(
 
 localparam int DATA_WIDTH    = ctrl_if.DATA_WIDTH;
 localparam int ADDR_WIDTH    = ctrl_if.ADDR_WIDTH;
+localparam int WORD_LEN     = ctrl_if.WORD_LEN;
+
 localparam int DEV_ADDR_WIDTH  = dev_if.ADDR_WIDTH;
 localparam int COL_WIDTH     = dev_if.COL_WIDTH;
 localparam int ROW_WIDTH     = dev_if.ROW_WIDTH;
@@ -33,28 +37,30 @@ localparam int N_BANKS       = 2 ** dev_if.BANK_WIDTH;
 
 localparam int CNT_W                = 4;
 localparam int CNT2_W               = 16;
-localparam real CLK_PERIOD_NS       = 1000.0 / SDRAM_MHZ;
-localparam int DELAY_STARTUP        = int'($ceil(STARTUP_US * SDRAM_MHZ));
+localparam real CLK_PERIOD_NS       = 1000.0 / FREQ_MHZ;
+localparam int DELAY_STARTUP        = int'($ceil(STARTUP_US * FREQ_MHZ));
 localparam int DELAY_REF_INTERVAL   = 350; //int'($ceil(tREF_NS/8192/CLK_PERIOD_NS));
 localparam int DELAY_RC             = int'($ceil(tRC_NS / CLK_PERIOD_NS));
 localparam int DELAY_RCD            = int'($ceil(tRCD_NS/CLK_PERIOD_NS));
 localparam int DELAY_RP             = int'($ceil(tRP_NS/CLK_PERIOD_NS));
 localparam int DELAY_DAL            = DELAY_WR + DELAY_RP;
 
+localparam int BOOT_LEN             = DELAY_STARTUP + 40;
+
 // sdram control words for sd_cmd
 // applied to {ras_n, cas_n, we_n}
-localparam SDRAM_ACTIVATE           = 3'b011;
-localparam SDRAM_PRECHARGE          = 3'b010; //A10: all vs bank
-localparam SDRAM_WRITE              = 3'b100; //A10: auto precharge
-localparam SDRAM_READ               = 3'b101; //A10: auto precharge
-localparam SDRAM_MODE_SET           = 3'b000;
-localparam SDRAM_NOP                = 3'b111;
-localparam SDRAM_BURST_STOP         = 3'b110;
-localparam SDRAM_AUTO_REFRESH       = 3'b001;
+localparam CTRL_ACTIVATE           = 3'b011;
+localparam CTRL_PRECHARGE          = 3'b010; //A10: all vs bank
+localparam CTRL_WRITE              = 3'b100; //A10: auto precharge
+localparam CTRL_READ               = 3'b101; //A10: auto precharge
+localparam CTRL_MODE_SET           = 3'b000;
+localparam CTRL_NOP                = 3'b111;
+localparam CTRL_BURST_STOP         = 3'b110;
+localparam CTRL_AUTO_REFRESH       = 3'b001;
 
-// after initial DELAY_STARTUP, we go through sequence of:
-// precharge, modeset, and 8x refreshes before memory is ready
-localparam BOOT_DURATION            = DELAY_RP + DELAY_RSC + 8*(DELAY_RC+3);
+// // after initial DELAY_STARTUP, we go through sequence of:
+// // precharge, modeset, and 8x refreshes before memory is ready
+// localparam BOOT_DURATION            = DELAY_RP + DELAY_RSC + 8*(DELAY_RC+3);
 
 localparam STATE_BOOT       = 3'h0;
 localparam STATE_PRECHARGE  = 3'h1;
@@ -84,15 +90,17 @@ localparam BURST_MODE = BURST_SIZE == 2 ? SDMODE_BURST2 : SDMODE_BURST1;
 localparam sdmode = ROW_WIDTH'({3'b0, CAS_LATENCY[2:0], SDMODE_SEQUENTIAL, BURST_MODE});
 
 // control signals
-(* keep="true",mark_debug="true" *) logic [2:0] state;
+`DEBUG logic [2:0] state;
 logic [2:0] state_next;
 logic new_state;
-logic [CNT_W-1:0] cnt, state_delay;
-logic first_cycle, last_cycle;
+`DEBUG logic [CNT_W-1:0] cnt, state_delay;
+`DEBUG logic first_cycle, last_cycle;
 logic [CNT2_W-1:0] cnt2;
 logic trigger_refresh, refresh_ack;
-logic boot_delay, booting, open_row, close_row;
+logic booting, open_row, close_row, close_all_rows;
+logic active;
 logic rd, wr;
+logic [WORD_LEN-1:0] wr_strobe;
 
 // command port signals
 logic rdy, rvalid, wvalid, req, valid_req;
@@ -102,30 +110,29 @@ assign ctrl_if.error = 0;
 assign ctrl_if.rdy = rdy;
 assign req = ctrl_if.rd | (ctrl_if.wr != 0);
 assign valid_req = rdy & req;
+assign wr = |wr_strobe;
+assign active = rd | wr | valid_req;
 
 // sdram dev signals
-(* keep="true",mark_debug="true" *) logic [2:0] sd_cmd;
+logic [2:0] sd_cmd;
 assign dev_if.cmd = sd_cmd;
-logic [1:0] bank, bank_req;
-logic [ROW_WIDTH-1:0] row, row_req;
-logic [COL_WIDTH-1:0] col, col_req;
-logic byte_misalign, byte_req, row_miss;
-
+`DEBUG logic [1:0] bank, bank_req;
+`DEBUG logic [ROW_WIDTH-1:0] row, row_req;
+`DEBUG logic [COL_WIDTH-1:0] col, col_req;
+`DEBUG logic byte_misalign, byte_req, row_hit;
+logic [DATA_WIDTH-1:0] write_data;
 logic [N_BANKS-1:0]  row_open;
 logic [ROW_WIDTH-1:0]  active_row[N_BANKS-1:0];
 
-(* keep="true",mark_debug="true" *) logic sd_wr, sd_rd, sd_rd2;
+logic sd_wr;
 
-assign {bank_req, row_req, col_req, byte_req} <= ctrl_if.addr[DEV_ADDR_WIDTH:0];
-assign row_miss = active_row[bank_req] != row_req;
+assign {bank_req, row_req, col_req, byte_req} = ctrl_if.addr[DEV_ADDR_WIDTH:0];
+assign row_hit = active_row[bank_req] == row_req;
 
-assign last_cycle = (cnt==state_delay);
+assign last_cycle = booting ? (cnt2==0) : (cnt==state_delay);
 always_ff @(posedge clk)
 begin
-
-    if(DATA_WIDTH == 32) sd_rd2 <= sd_rd;
-
-    // count cycles within each state
+    // count cycles within each state (counts up)
     cnt <= cnt+1;
     first_cycle <= 0;
 
@@ -135,43 +142,37 @@ begin
         first_cycle <= 1;
     end
 
-    // secondary counter for boot sequence and refresh
+    // secondary counter for boot sequence and refresh (counts down)
     if(cnt2==0) begin
         trigger_refresh <= 1;
-
-        if(boot_delay) begin
-            booting <= 1;
-            cnt2 <= `DELAY(BOOT_DURATION, CNT2_W);
-        end else begin
-            booting <= 0;
-            cnt2 <= `DELAY(DELAY_REF_INTERVAL, CNT2_W);
-        end
+        cnt2 <= CNT2_W'(DELAY_REF_INTERVAL);
     end else cnt2 <= cnt2-1;
 
-    if(refresh_ack & !booting) trigger_refresh <= 0;
+    if(refresh_ack) trigger_refresh <= 0;
 
     if(rvalid) rd <= 0;
-    if(wvalid) wr <= 0;
+    if(wvalid) wr_strobe <= '0;
 
     if (valid_req) begin
+        write_data <= ctrl_if.write_data;
         bank <= bank_req;
         row <= row_req;
         col <= col_req;
         byte_misalign <= byte_req;
         rd <= ctrl_if.rd;
-        wr <= (ctrl_if.wr != 0);
+        wr_strobe <= ctrl_if.wr;
     end
 
     if(open_row) row_open[bank] <= 1;
     if(close_row) row_open[bank] <= 0;
+    if(close_all_rows) row_open <= '0;
     
     if (rst) begin
         state <= STATE_BOOT;
         cnt <= 0;
         first_cycle <= 0;
 
-        cnt2 <= `DELAY(DELAY_STARTUP, CNT2_W);
-        booting <= 0;
+        cnt2 <= CNT2_W'(BOOT_LEN);
         trigger_refresh <= 0;
 
         bank <= 0;
@@ -179,8 +180,7 @@ begin
         col <= 0;
         byte_misalign <= 0;
         rd <= 0;
-        wr <= 0;
-        sd_rd2 <= 0;
+        wr_strobe <= '0;
         row_open <= '0;
     end 
 end
@@ -192,175 +192,155 @@ begin
     dev_if.addr = '0;
     dev_if.ba = 2'b0;
     dev_if.cs = 1'b0;
-    dev_if.dqm = '0;
-    sd_cmd = SDRAM_NOP;
-    sd_rd = 0;
+    sd_cmd = CTRL_NOP;
     sd_wr = 0;
 
     rdy = 0;
     state_next = state;
-    boot_delay = 0;
     state_delay = '0;
     refresh_ack = 0;
     rvalid = 0;
     wvalid = 0;
 
+    booting = 0;
     close_row = 0;
+    close_all_rows = 0;
     open_row = 0;
 
     case(state)
         STATE_BOOT: begin 
-            // After power up, an initial pause of 200 μ S is required. To prevent data contention on the DQ bus 
-            // during power up, it is required that the DQM and CKE pins be held high during the initial pause period.
-            dev_if.dqm = 2'b11;
-            boot_delay = 1;
-            if (booting) state_next = STATE_PRECHARGE;
+            booting = 1;
+            case(cnt2)
+                40: begin sd_cmd = CTRL_PRECHARGE; dev_if.addr[10] = 1'b1; end
+                30: sd_cmd = CTRL_AUTO_REFRESH;
+                20: sd_cmd = CTRL_AUTO_REFRESH;
+                10: begin sd_cmd = CTRL_MODE_SET; dev_if.addr = sdmode; end
+                default: sd_cmd = CTRL_NOP;
+            endcase
+            state_next = STATE_IDLE;
         end
         STATE_PRECHARGE: begin 
-            if(first_cycle) sd_cmd = SDRAM_PRECHARGE; // Precharge all banks            
-            close_row = 1;
-            dev_if.addr[10] = 1'b1;
-            state_delay = 10; //`DELAY(DELAY_RP-1, CNT_W);
-            state_next = booting ? STATE_MODESET :
-                         trigger_refresh ? STATE_REFRESH :
-                         (rd | wr) ? STATE_ACTIVATE :
-                         STATE_IDLE;
-        end
-        STATE_MODESET: begin
-            if(first_cycle) sd_cmd = SDRAM_MODE_SET;
-            dev_if.addr = sdmode;
-            dev_if.ba = 2'b0;
-            state_delay = 10; //`DELAY(DELAY_RSC-2, CNT_W);
-            state_next = STATE_REFRESH;
+            if(first_cycle) sd_cmd = CTRL_PRECHARGE;
+            state_delay = CNT_W'(DELAY_RP);
+            if(trigger_refresh) begin
+                dev_if.addr[10] = 1; // Precharge all banks on refresh
+                close_all_rows = 1;    
+                state_next = STATE_REFRESH;
+            end else begin
+                dev_if.ba = bank;
+                close_row = 1;  // precharge bank before activating next row
+                state_next = STATE_ACTIVATE;
+            end
         end
         STATE_REFRESH: begin
-            if(first_cycle) sd_cmd = SDRAM_AUTO_REFRESH;
+            if(first_cycle) sd_cmd = CTRL_AUTO_REFRESH;
             refresh_ack = 1;
-            state_delay = `DELAY(DELAY_RC-1, CNT_W);
-            state_next = STATE_IDLE;
+            state_delay = CNT_W'(DELAY_RC-1);
+            rdy = last_cycle;
+            state_next = active ? STATE_ACTIVATE : STATE_IDLE;
         end
         STATE_IDLE: begin  
             if( trigger_refresh ) begin
-                rdy = 0;
-                // state_next = STATE_REFRESH;
-                state_next = STATE_PRECHARGE;
+                state_next = |row_open ? STATE_PRECHARGE : STATE_REFRESH;
             end else begin
                 rdy = 1;
                 if(req) begin
-                    state_next = row_miss ? STATE_PRECHARGE :
-                                 ctrl_if.rd ? STATE_READ :
-                                 STATE_WRITE;
+                    state_next = STATE_PRECHARGE;
+                    // if (row_open[bank_req]) begin
+                    //     if (row_hit) state_next = ctrl_if.rd ? STATE_READ : STATE_WRITE;
+                    //     else state_next = STATE_PRECHARGE;
+                    // end else begin
+                    //     state_next = STATE_ACTIVATE;
+                    // end
                 end
             end
         end
         STATE_ACTIVATE: begin
-            if(first_cycle) sd_cmd = SDRAM_ACTIVATE;
+            if(first_cycle) sd_cmd = CTRL_ACTIVATE;
             dev_if.addr = row;
             dev_if.ba = bank;
             open_row = 1;
             state_next = rd ? STATE_READ : STATE_WRITE;
-            state_delay = 1; //`DELAY(DELAY_RCD-1, CNT_W);
+            state_delay = 2; //`DELAY(DELAY_RCD-1, CNT_W);
         end
         STATE_READ: begin 
-            if(first_cycle) sd_cmd = SDRAM_READ;
+            if(first_cycle) sd_cmd = CTRL_READ;
             dev_if.ba = bank;
             dev_if.addr[COL_WIDTH-1:0] = col;
-            dev_if.addr[10] = 1'b1; // auto precharge
-            /* verilator lint_off WIDTHEXPAND */
-            sd_rd = (cnt == (CAS_LATENCY));
-            /* verilator lint_on WIDTHEXPAND */
-            state_delay = `DELAY(CAS_LATENCY+BURST_SIZE, CNT_W);
+            // dev_if.addr[10] = 1'b1; // auto precharge
+            state_delay = CNT_W'(CAS_LATENCY+BURST_SIZE);
             state_next = STATE_IDLE;
             rvalid = last_cycle;
         end
         STATE_WRITE: begin 
-            if(first_cycle) sd_cmd = SDRAM_WRITE;
+            if(first_cycle) begin
+                sd_cmd = CTRL_WRITE;
+                sd_wr = 1'b1;
+            end
             dev_if.ba = bank;
             dev_if.addr[COL_WIDTH-1:0] = col;
             // dev_if.addr[10] = 1'b1; // auto precharge
-            sd_wr = 1'b1;
             state_next = STATE_IDLE;
-
+            state_delay = CNT_W'(BURST_SIZE);
             // state_delay = `DELAY(`MAX(BURST_SIZE-1, DELAY_DAL-1), CNT_W);
-            state_delay = 2; // should be 2??
             wvalid = last_cycle;
-            dev_if.dqm = dqm_reg[1:0];
         end
         default: begin end
     endcase
 end
 
-// data register to support various data widths
-localparam DATA_REG_W = DATA_WIDTH >= 16 ? DATA_WIDTH : 16;
-localparam DATA_REG_BYTES = DATA_REG_W/8;
-(* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)  logic [DATA_REG_W-1:0] data_reg;
-(* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)  logic [DATA_REG_BYTES-1:0] dqm_reg;
-
-(* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)  logic [15:0] dev_rd_reg;
-
+// register read data
+`DEBUG logic [15:0] data_rd_reg0, data_rd_reg1;
+always_ff @(posedge clk) begin
+    data_rd_reg0 <= dev_if.read_data;
+    data_rd_reg1 <= data_rd_reg0;
+    if (rst) begin
+        data_rd_reg0 <= '0;
+        data_rd_reg1 <= '0;
+    end
+end
+wire [DATA_WIDTH-1:0] data_read;
 generate
     if(DATA_WIDTH == 8) begin
-        always_ff @(posedge clk) begin
-            if (rst) begin
-                data_reg <= '0;
-                dqm_reg <= '0;
-            end else begin
-                if (valid_req) begin
-                    // only write upper or lower byte...
-                    data_reg <= {ctrl_if.write_data, ctrl_if.write_data};
-                    dqm_reg <= {~ctrl_if.addr[0], ctrl_if.addr[0]};
-                    // if (ctrl_if.addr[0]) begin
-                    //     data_reg <= {ctrl_if.write_data, 8'b0};
-                    //     dqm_reg <= 2'b01;
-                    // end else begin
-                    //     data_reg <= {8'b0, ctrl_if.write_data};
-                    //     dqm_reg <= 2'b10;
-                    // end
-                end
-                if (sd_rd) data_reg[7:0] <= byte_misalign ? dev_if.read_data[15:8] : dev_if.read_data[7:0];
-            end
-        end
+        assign data_read = byte_misalign ? data_rd_reg0[15:8] : data_rd_reg0[7:0];
     end else if(DATA_WIDTH == 16) begin
-        always_ff @(posedge clk) begin
-            if (rst) begin
-                data_reg <= '0;
-                dqm_reg <= '0;
-            end else begin
-                if (valid_req) begin
-                    data_reg <= ctrl_if.write_data;
-                    // dqm_reg <= ~ctrl_if.wr;
-                    dqm_reg <= '0;
-                end
-                if (sd_rd) data_reg <= dev_if.read_data;
-            end
-        end
-    end else begin // DATA_WIDTH >= 32
-        always_ff @(posedge clk) begin
-            if (rst) begin
-                data_reg <= '0;
-                dqm_reg <= '0;
-            end else begin
-                if (valid_req) begin
-                    data_reg <= ctrl_if.write_data;
-                    // dqm_reg <= ~ctrl_if.wr;
-                    dqm_reg <= '0;
-                end
-                if (sd_wr | sd_rd | sd_rd2) begin
-                    // each rd/wr cycle shift down active 16-bit
-                    // active write data is shifted into low bits
-                    // active read data is shifted into high bits
-                    data_reg <= {dev_if.read_data, data_reg[DATA_REG_W-1:16]};
-                    // dqm_reg <= {2'b11, dqm_reg[DATA_REG_BYTES-1:2]};
-                    dqm_reg <= '0;
-                end
-            end
-            dev_rd_reg <= dev_if.read_data;
-        end
+        assign data_read = data_rd_reg0;
+    end else begin //DATA_WIDTH == 32
+        assign data_read = {data_rd_reg0, data_rd_reg1};
     end
 endgenerate
+assign ctrl_if.read_data = rvalid ? data_read : '0;
 
-assign ctrl_if.read_data = rvalid ? data_reg[DATA_WIDTH-1:0] : '0;
-assign dev_if.write_data = data_reg[15:0];
-assign dev_if.wr_en = sd_wr;
+// write data and mask
+logic [1:0] wr_mask;
+logic [15:0] wr_data;
+logic wr_en;
+generate
+    if(DATA_WIDTH == 8) begin
+        assign wr_en = sd_wr;
+        assign wr_mask = {~byte_misalign, byte_misalign};
+        assign wr_data = {write_data, write_data};
+    end else if(DATA_WIDTH == 16) begin
+        assign wr_mask = sd_wr ? ~wr_strobe : '0;
+        assign wr_data = sd_wr ? write_data : '0;
+    end else begin //DATA_WIDTH == 32
+        logic sd_wr2;
+        always_ff @(posedge clk) begin
+            sd_wr2 <= sd_wr;
+            if (rst) begin
+                sd_wr2 <= '0;
+            end
+        end
+        assign wr_en = sd_wr | sd_wr2;
+        assign wr_data = sd_wr2 ? write_data[31:16] : write_data[15:0];
+        assign wr_mask = sd_wr2 ? ~wr_strobe[3:2]: ~wr_strobe[1:0];
+    end
+endgenerate
+assign dev_if.write_data = wr_en ? wr_data : '0;;
+assign dev_if.wr_en = wr_en;
+assign dev_if.dqm = booting ? 2'b11 :
+                    wr_en ? wr_mask :
+                    '0;
+
 
 endmodule

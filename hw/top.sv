@@ -1,10 +1,13 @@
 `timescale 1ns/1ps
 
+`define DEBUG (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)
+`define DEBUG2 (* keep="true",mark_debug="true",mark_debug_clock="u_sdram_io/clk_sdram" *)
+
 module zynq_sdram
 (
     //GPIO
     // input [1:0] SW,
-    // input [3:0] btn,
+    input [3:0] btn,
     output [3:0] LED,
 
     // sdram pins
@@ -50,7 +53,7 @@ module zynq_sdram
     wire ARST;
     wire ARSTN;
 
-    localparam real SDRAM_MHZ    = 50;
+    localparam real FREQ_MHZ    = 50;
     localparam int ADDR_WIDTH    = 32;
     localparam int DATA_WIDTH    = 32;
     localparam int SDADDR_WIDTH  = 24;
@@ -59,10 +62,10 @@ module zynq_sdram
     sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH)) dev_if();
     taxi_axil_if axi_if();
 
-    assign LED[0] = 1'b1;
-    assign LED[1] = ctrl_if.rvalid;
-    assign LED[2] = ctrl_if.wvalid;
-    assign LED[3] = ctrl_if.error;
+    // assign LED[0] = 1'b1;
+    // assign LED[1] = ctrl_if.rvalid;
+    // assign LED[2] = ctrl_if.wvalid;
+    // assign LED[3] = ctrl_if.error;
     
     zynq_ps_axi
     u_zynq
@@ -122,8 +125,7 @@ module zynq_sdram
         .sdram_ctrl (ctrl_if)
     );
 
-    sdram_ref u_sdram_controller(
-    // sdram_core u_sdram_controller(
+    sdram_core_pc u_sdram_controller(
         .clk      (ACLK      ),
         .rst      (ARST      ),
         .ctrl_if  (ctrl_if),
@@ -135,6 +137,8 @@ module zynq_sdram
     (
         .clk                     (ACLK),
         .rst                     (ARST),
+        .phase_adv               (btn[0]),
+        .phase_stable            (LED[0]),
         .dev_if                  (dev_if),
         .clk_sdram               (clk_sdram),
         .sdram_cke               (sdram_cke),
@@ -148,28 +152,37 @@ module zynq_sdram
         .sdram_dq                (sdram_dq)
     );
 
+    `DEBUG  wire [2:0]                  dev_cmd = dev_if.cmd;
+    `DEBUG  wire [ 1:0]                 dev_dqm = dev_if.dqm;
+    `DEBUG  wire [dev_if.ROW_WIDTH-1:0] dev_addr = dev_if.addr;
+    `DEBUG  wire [ 1:0]                 dev_ba = dev_if.ba;
+    `DEBUG  wire [15:0]                 dev_read_data = dev_if.read_data;
+    `DEBUG  wire [15:0]                 dev_write_data = dev_if.write_data;
+    `DEBUG  wire                        dev_wr_en = dev_if.wr_en;
+    // `DEBUG2  wire [15:0]                dq = dev_if.read_data;
 
-//     // (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)  wire                   cke = dev_if.cke;
-//     // (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)  wire                   cs = dev_if.cs;
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)  wire [2:0]                  dev_cmd = dev_if.cmd;
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)  wire [ 1:0]            dev_dqm = dev_if.dqm;
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)  wire [dev_if.ROW_WIDTH-1:0]   dev_addr = dev_if.addr;
-//     // (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)  wire [ 1:0]            dev_ba = dev_if.ba;
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0"*)  wire [15:0]            dev_write_data = dev_if.write_data;
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)  wire                   dev_wr_en = dev_if.wr_en;
+    `DEBUG wire  [ 3:0]                 ctrl_wr = ctrl_if.wr;
+    `DEBUG wire                         ctrl_rd = ctrl_if.rd;
+    `DEBUG wire  [ 31:0]                ctrl_addr = ctrl_if.addr;
+    `DEBUG wire  [ 31:0]                ctrl_write_data = ctrl_if.write_data;
+    `DEBUG wire                         ctrl_rdy = ctrl_if.rdy;
+    `DEBUG wire                         ctrl_rvalid = ctrl_if.rvalid;
+    `DEBUG wire                         ctrl_wvalid = ctrl_if.wvalid;
+    `DEBUG wire [ 31:0]                 ctrl_read_data = ctrl_if.read_data;
 
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_sdram_io/clk_sdram" *)  wire [15:0]            dev_read_data = dev_if.read_data;
-//    (* keep="true",mark_debug="true",mark_debug_clock="u_sdram_io/clk_sdram" *)  wire [2:0]              dev2_cmd = dev_if.cmd;
 
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *) wire  [ ctrl_if.WORD_LEN-1:0]      ctrl_wr = ctrl_if.wr;
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *) wire                       ctrl_rd = ctrl_if.rd;
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *) wire  [ ctrl_if.ADDR_WIDTH-1:0]    ctrl_addr = ctrl_if.addr;
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *) wire  [ ctrl_if.DATA_WIDTH-1:0]    ctrl_write_data = ctrl_if.write_data;
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *) wire                       ctrl_rdy = ctrl_if.rdy;
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *) wire                       ctrl_rvalid = ctrl_if.rvalid;
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *) wire                       ctrl_wvalid = ctrl_if.wvalid;
-//     (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *) wire [ ctrl_if.DATA_WIDTH-1:0]     ctrl_read_data = ctrl_if.read_data;
 
+    // `DEBUG wire arready = axi_if.arready;
+    // `DEBUG wire arvalid = axi_if.arvalid;
+    // `DEBUG wire awready = axi_if.awready;
+    // `DEBUG wire awvalid = axi_if.awvalid;
+    // `DEBUG wire bready = axi_if.bready;
+    // `DEBUG wire bresp = axi_if.bresp;
+    // `DEBUG wire rready = axi_if.rready;
+    // `DEBUG wire rresp = axi_if.rresp;
+    // `DEBUG wire rvalid = axi_if.rvalid;
+    // `DEBUG wire wready = axi_if.wready;
+    // `DEBUG wire wvalid = axi_if.wvalid;
 
 
 endmodule

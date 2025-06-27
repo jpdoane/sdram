@@ -7,6 +7,7 @@ SIMCOMPFLAGS := -g2012
 SIMFLAGS := 
 
 SRCS = ../hdl/sdram_core.sv
+SRCS += ../hdl/sdram_core_pc.sv
 SRCS += ../hdl/sdram_ref.sv
 SRCS += ../hdl/sdram_if.sv
 SRCS += ../hdl/sdram_arb.sv
@@ -33,6 +34,9 @@ $(OBJDIR)/V%: %.sv $(SRCS) $(MODELSRC) | $(OBJDIR)
 test: $(OBJDIR)/Vsdram_tb
 	$< $(VERILATOR_RUN_FLAGS)
 
+testpc: $(OBJDIR)/Vsdram_pc_tb
+	$< $(VERILATOR_RUN_FLAGS)
+
 testaxi: $(OBJDIR)/Vsdram_axil_tb
 	$< $(VERILATOR_RUN_FLAGS)
 
@@ -44,6 +48,9 @@ testref: $(OBJDIR)/Vsdram_ref_tb
 
 view: $(VCD)
 	gtkwave $(VCD) -a waves.gtkw&
+
+viewref:
+	gtkwave sdram_ref.vcd -a waves_ref.gtkw&
 
 clean:
 	-@rm -rf obj_dir

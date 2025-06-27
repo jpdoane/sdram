@@ -56,7 +56,7 @@ module sdram_dual
 ,output logic sdram_udqm
 );
 
-parameter SDRAM_MHZ             = 50;
+parameter FREQ_MHZ             = 50;
 parameter SDRAM_ADDR_W          = 24;
 parameter SDRAM_COL_W           = 9;
 parameter SDRAM_READ_LATENCY    = 3;
@@ -208,7 +208,7 @@ u_axi
 
 sdram32
 #(
-     .SDRAM_MHZ(SDRAM_MHZ)
+     .FREQ_MHZ(FREQ_MHZ)
     ,.SDRAM_ADDR_W(SDRAM_ADDR_W)
     ,.SDRAM_COL_W(SDRAM_COL_W)
     ,.SDRAM_READ_LATENCY(SDRAM_READ_LATENCY)
