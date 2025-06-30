@@ -42,7 +42,7 @@ localparam int DELAY_STARTUP        = int'($ceil(STARTUP_US * FREQ_MHZ));
 localparam int DELAY_REF_INTERVAL   = 350; //int'($ceil(tREF_NS/8192/CLK_PERIOD_NS));
 localparam int DELAY_RC             = int'($ceil(tRC_NS / CLK_PERIOD_NS));
 localparam int DELAY_RCD            = int'($ceil(tRCD_NS/CLK_PERIOD_NS));
-localparam int DELAY_RP             = int'($ceil(tRP_NS/CLK_PERIOD_NS));
+localparam int DELAY_RP             = 1; //int'($ceil(tRP_NS/CLK_PERIOD_NS));
 localparam int DELAY_DAL            = DELAY_WR + DELAY_RP;
 
 localparam int BOOT_LEN             = DELAY_STARTUP + 40;
@@ -221,7 +221,8 @@ begin
         end
         STATE_PRECHARGE: begin 
             if(first_cycle) sd_cmd = CTRL_PRECHARGE;
-            state_delay = CNT_W'(DELAY_RP);
+            // state_delay = CNT_W'(DELAY_RP);
+            state_delay = CNT_W'1;
             if(trigger_refresh) begin
                 dev_if.addr[10] = 1; // Precharge all banks on refresh
                 close_all_rows = 1;    
@@ -235,7 +236,8 @@ begin
         STATE_REFRESH: begin
             if(first_cycle) sd_cmd = CTRL_AUTO_REFRESH;
             refresh_ack = 1;
-            state_delay = CNT_W'(DELAY_RC-1);
+            // state_delay = CNT_W'(DELAY_RC-1);
+            state_delay = CNT_W'3;
             rdy = last_cycle;
             state_next = active ? STATE_ACTIVATE : STATE_IDLE;
         end
@@ -261,8 +263,8 @@ begin
             dev_if.ba = bank;
             open_row = 1;
             state_next = rd ? STATE_READ : STATE_WRITE;
-            state_delay = 2; //`DELAY(DELAY_RCD-1, CNT_W);
-        end
+            state_delay = CNT_W'1; //`DELAY(DELAY_RCD-1, CNT_W);
+         end
         STATE_READ: begin 
             if(first_cycle) sd_cmd = CTRL_READ;
             dev_if.ba = bank;
