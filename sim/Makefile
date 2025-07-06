@@ -6,14 +6,15 @@ VIEWER := gtkwave
 SIMCOMPFLAGS := -g2012
 SIMFLAGS := 
 
-SRCS = ../hdl/sdram_core.sv
-SRCS += ../hdl/sdram_core_pc.sv
-SRCS += ../hdl/sdram_ref.sv
+SRCS =
+# SRCS += ../hdl/sdram_core.sv
+SRCS += ../hdl/sdram_core_pc2.sv
+SRCS += ../hdl/sdram_core_ref.sv
 SRCS += ../hdl/sdram_if.sv
-SRCS += ../hdl/sdram_arb.sv
+# SRCS += ../hdl/sdram_arb.sv
 SRCS += ../hdl/axil_sdram.sv
 SRCS += ../hdl/taxi_axil_if.sv
-MODELSRC = ../models/MT48LC8M16A2.v
+MODELSRC = ../models/MT48LC8M16A2.sv
 
 OBJDIR = obj_dir
 VCD = sdram.vcd
@@ -31,7 +32,7 @@ $(OBJDIR):
 $(OBJDIR)/V%: %.sv $(SRCS) $(MODELSRC) | $(OBJDIR)
 	verilator $(VERILATOR_FLAGS) --top $(basename $(notdir $<)) $^
 
-test: $(OBJDIR)/Vsdram_tb
+test: $(OBJDIR)/Vsdram_pc_tb
 	$< $(VERILATOR_RUN_FLAGS)
 
 testpc: $(OBJDIR)/Vsdram_pc_tb

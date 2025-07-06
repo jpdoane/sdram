@@ -9,6 +9,7 @@ module sdram_ref_tb;
     localparam real FREQ_MHZ    = 50;
     localparam int ADDR_WIDTH    = 32;
     localparam int SDADDR_WIDTH  = 24;
+    localparam int COL_WIDTH     = 9;
     localparam int CAS_LATENCY   = 2;
 
     parameter DEBUG_SDRAM         = 1;
@@ -26,14 +27,16 @@ module sdram_ref_tb;
     localparam real CLK_PERIOD=1000/FREQ_MHZ;
     localparam real HALF_CLK_PERIOD=CLK_PERIOD/2;
     localparam real QTR_CLK_PERIOD=CLK_PERIOD/4;
+    localparam real OFFSET_CLK_PERIOD=CLK_PERIOD*2/3;
+    localparam real IO_LATENCY_NS=CLK_PERIOD/2;
     
     initial
      begin
-        $dumpfile("sdram_ref.vcd");
+        $dumpfile("sdram.vcd");
         $dumpvars(0,sdram_core_tb);
         $dumpon;
-        // #110000;
-        // $finish;
+        #3000000;
+        $finish;
      end
     
     initial begin
@@ -48,10 +51,10 @@ module sdram_ref_tb;
         clk = ~clk;
     end
     // clock ram with 90deg lag
-    wire #QTR_CLK_PERIOD sdram_clk = clk; 
+    wire #OFFSET_CLK_PERIOD sdram_clk = clk; 
 
     sdram_ctrl_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) ctrl_if();
-    sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH)) dev_if();
+    sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) dev_if();
     
     logic [ADDR_WIDTH-1:0] addr;
     logic [DATA_WIDTH-1:0] read_data, write_data;
@@ -59,66 +62,110 @@ module sdram_ref_tb;
     always begin
         while(rst) @(posedge clk);
     
-        repeat(10) begin
-            for (int n = 0; n < 16; n++) begin
-                addr = n << 2;
-                write_data = 32'hab00cd00 + (n<<16) + n;
+        n = 5;
+        addr = n<<2;
+        write_data = n;
 
-                // write(ctrl_if, clk, addr, write_data);
-                ctrl_if.addr = addr;
-                ctrl_if.write_data = write_data;
-                ctrl_if.wr = '1;
-                while(~ctrl_if.rdy) @(posedge clk);
-                @(posedge clk);
-                ctrl_if.wr = '0;
-                ctrl_if.write_data = 0;
-                while(~ctrl_if.wvalid) @(posedge clk);
-                $display("at time %t Wrote 0x%0x to 0x%0x", $time, write_data, addr);
-            end            
-            for (int n = 0; n < 16; n++) begin
-                addr = n << 2;
-                write_data = 32'hab00cd00 + (n<<16) + n;
+        ctrl_if.addr = addr;
+        ctrl_if.write_data = write_data;
+        ctrl_if.wr = '1;
+        while(~ctrl_if.rdy) @(posedge clk);
+        @(posedge clk);
+        ctrl_if.wr = '0;
+        ctrl_if.write_data = 0;
+        while(~ctrl_if.wvalid) @(posedge clk);
+        @(posedge clk);
+        @(posedge clk);
 
-                ctrl_if.addr = addr;
-                ctrl_if.rd = 1;
-                while(~ctrl_if.rdy) @(posedge clk);
-                @(posedge clk);
-                ctrl_if.rd = 0;
-                while(~ctrl_if.rvalid) @(posedge clk);
-                read_data = ctrl_if.read_data;
-                if(read_data == write_data) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, read_data, addr);
-                else $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x, expected 0x%0x", $time, read_data, addr, write_data);
-            end            
-
-        end
-        
+        ctrl_if.addr = addr;
+        ctrl_if.rd = 1;
+        while(~ctrl_if.rdy) @(posedge clk);
+        @(posedge clk);
+        ctrl_if.rd = 0;
+        while(~ctrl_if.rvalid) @(posedge clk);
+        @(posedge clk);
+        @(posedge clk);
         $finish;
+
+        // repeat(1) begin
+        //     for (int n = 0; n < 16; n++) begin
+        //         addr = n << 10;
+        //         write_data = ((n^ 32'hffffffff) << 16) + n;
+
+        //         // write(ctrl_if, clk, addr, write_data);
+        //         ctrl_if.addr = addr;
+        //         ctrl_if.write_data = write_data;
+        //         ctrl_if.wr = '1;
+        //         while(~ctrl_if.rdy) @(posedge clk);
+        //         @(posedge clk);
+        //         ctrl_if.wr = '0;
+        //         ctrl_if.write_data = 0;
+        //         while(~ctrl_if.wvalid) @(posedge clk);
+        //         @(posedge clk);
+        //         @(posedge clk);
+        //         $display("at time %t Wrote 0x%0x to 0x%0x", $time, write_data, addr);
+        //     end            
+        //     for (int n = 0; n < 16; n++) begin
+        //         addr = n << 10;
+        //         write_data = ((n^ 32'hffffffff) << 16) + n;
+
+        //         ctrl_if.addr = addr;
+        //         ctrl_if.rd = 1;
+        //         while(~ctrl_if.rdy) @(posedge clk);
+        //         @(posedge clk);
+        //         ctrl_if.rd = 0;
+        //         while(~ctrl_if.rvalid) @(posedge clk);
+        //         read_data = ctrl_if.read_data;
+        //         if(read_data == write_data) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, read_data, addr);
+        //         else begin
+        //             $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x, expected 0x%0x", $time, read_data, addr, write_data);
+        //             @(posedge clk);
+        //             @(posedge clk);
+        //             @(posedge clk);
+        //             @(posedge clk);
+        //             @(posedge clk);
+        //             $finish;
+        //         end
+        //     end            
+
+        // end
+        
+        // $finish;
     end
 
-    sdram_ref
-    #(
-        // .FREQ_MHZ      (FREQ_MHZ),
-        // .CAS_LATENCY    (CAS_LATENCY),
-        // .tRC_NS         (tRC_NS),
-        // .tRAS_NS        (tRAS_NS),
-        // .tRCD_NS        (tRCD_NS),
-        // .tRP_NS         (tRP_NS),
-        // .tXSR_NS        (tXSR_NS),
-        // .tREF_NS        (tREF_NS),
-        // .DELAY_WR       (DELAY_WR),
-        // .DELAY_RRD      (DELAY_RRD),
-        // .DELAY_RSC      (DELAY_RSC),        
-        // .STARTUP_US     (1)
-    )
+    sdram_core_pc
     u_sdram_controller(
         .clk      (clk      ),
         .rst      (rst      ),
         .ctrl_if  (ctrl_if.man),
         .dev_if   (dev_if.sub)
     );
+
+    // spoof ref design to check consistency
+    sdram_ctrl_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) ctrl_if2();
+    sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) dev_if2();
+
+    assign ctrl_if2.wr = ctrl_if.wr;
+    assign ctrl_if2.rd = ctrl_if.rd;
+    assign ctrl_if2.addr = ctrl_if.addr;
+    assign ctrl_if2.write_data = ctrl_if.write_data;
+    assign dev_if2.read_data = dev_if.read_data;
+
+
+    wire cmd_diff = dev_if.cmd != dev_if2.cmd;
+
+    sdram_core_ref
+    u_sdram_controller_ref(
+        .clk      (clk      ),
+        .rst      (rst      ),
+        .ctrl_if  (ctrl_if2.man),
+        .dev_if   (dev_if2.sub)
+    );
+
     
 
     MT48LC8M16A2 #(
+    .IO_LATENCY_NS(IO_LATENCY_NS),
     .Debug(DEBUG_SDRAM),
     .tMRD   (DELAY_RSC*CLK_PERIOD),
     .tRAS   (tRAS_NS),

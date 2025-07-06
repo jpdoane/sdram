@@ -652,8 +652,8 @@ connect_bd_net -net processing_system7_0_FCLK_RESET0_N  [get_bd_pins processing_
 [get_bd_pins proc_sys_reset_0/ext_reset_in]
 
 # Create address segments
-assign_bd_address -offset 0x40000000 -range 0x01000000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs M00_AXI_0/Reg] -force
-assign_bd_address -offset 0x41000000 -range 0x01000000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs M01_AXI_0/Reg] -force
+assign_bd_address -offset 0x40000000 -range 0x02000000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs M00_AXI_0/Reg] -force
+assign_bd_address -offset 0x42000000 -range 0x02000000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs M01_AXI_0/Reg] -force
 # assign_bd_address -offset 0x40000000 -range 0x01000000 -target_address_space [get_bd_addr_spaces S00_AXI_0] [get_bd_addr_segs M00_AXI_0/Reg] -force
 # assign_bd_address -offset 0x41000000 -range 0x01000000 -target_address_space [get_bd_addr_spaces S00_AXI_0] [get_bd_addr_segs M01_AXI_0/Reg] -force
 
