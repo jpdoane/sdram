@@ -7,6 +7,9 @@
 # set_property -dict {PACKAGE_PIN H16 IOSTANDARD LVCMOS33} [get_ports CLK_125MHZ]
 # create_clock -period 8.000 -name sys_clk -waveform {0.000 4.000} [get_ports CLK_125MHZ]
 
+create_generated_clock -name clk50MHz [get_pins u_zynq/processing_system7_0/inst/FCLK_CLK0]
+
+
 ## Switches
 # set_property -dict {PACKAGE_PIN M20 IOSTANDARD LVCMOS33} [get_ports {SW[0]}]
 # set_property -dict {PACKAGE_PIN M19 IOSTANDARD LVCMOS33} [get_ports {SW[1]}]
@@ -137,6 +140,18 @@ set_property -dict {PACKAGE_PIN T5 IOSTANDARD LVCMOS33} [get_ports {sdram_ba[0]}
 set_property -dict {PACKAGE_PIN U10 IOSTANDARD LVCMOS33} [get_ports {sdram_ba[1]}]
 set_property -dict {PACKAGE_PIN F19 IOSTANDARD LVCMOS33} [get_ports {sdram_dqm[0]}]
 set_property -dict {PACKAGE_PIN F20 IOSTANDARD LVCMOS33} [get_ports {sdram_dqm[1]}]
+
+set_max_delay -datapath_only -from [all_registers] -to [get_ports clk_sdram] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_cke] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_cs_n] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_ras_n] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_cas_n] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_we_n] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_dqm] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_a] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_ba] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_dq] 4
+set_max_delay -datapath_only -from [get_ports sdram_dq] 4
 
 # set_property -dict { PACKAGE_PIN C20   IOSTANDARD LVCMOS33 } [get_ports { ck_a[8]  }]; #IO_L1P_T0_AD0P_35       Sch=AD0_P
 # set_property -dict { PACKAGE_PIN B20   IOSTANDARD LVCMOS33 } [get_ports { ck_a[9]  }]; #IO_L1N_T0_AD0N_35       Sch=AD0_N

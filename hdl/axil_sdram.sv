@@ -1,6 +1,6 @@
 `timescale 1ns / 100ps
 
-`define DEBUG (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)
+// `define DEBUG (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)
 
 module axil_sdram
 (
@@ -43,29 +43,29 @@ always_ff @(posedge clk) begin
     end
 end
 
-`DEBUG logic [31:0] read_ctr;
-`DEBUG logic [31:0] write_ctr;
-always_ff @(posedge clk) begin
+// `DEBUG logic [31:0] read_ctr;
+// `DEBUG logic [31:0] write_ctr;
+// always_ff @(posedge clk) begin
 
-    if(read_ctr != 0) read_ctr <= read_ctr+1;
-    if(axi_if.arvalid) read_ctr <= 1;
-    if(rvalid) read_ctr <= 0;
+//     if(read_ctr != 0) read_ctr <= read_ctr+1;
+//     if(axi_if.arvalid) read_ctr <= 1;
+//     if(rvalid) read_ctr <= 0;
 
-    if(write_ctr != 0) write_ctr <= write_ctr+1;
-    if(axi_if.awvalid | axi_if.wvalid) write_ctr <= 1;
-    if(bvalid) write_ctr <= 0;
+//     if(write_ctr != 0) write_ctr <= write_ctr+1;
+//     if(axi_if.awvalid | axi_if.wvalid) write_ctr <= 1;
+//     if(bvalid) write_ctr <= 0;
 
-    // if(axi_if.arvalid&sdram_ctrl.rdy) open_read <= 1;
-    // else if (sdram_ctrl.rvalid) open_read <= 0;
+//     // if(axi_if.arvalid&sdram_ctrl.rdy) open_read <= 1;
+//     // else if (sdram_ctrl.rvalid) open_read <= 0;
 
-    // if( (axi_if.awvalid | axi_if.wvalid) & sdram_ctrl.rdy) open_write <= 1;
-    // else if (sdram_ctrl.wvalid) open_write <= 0;
+//     // if( (axi_if.awvalid | axi_if.wvalid) & sdram_ctrl.rdy) open_write <= 1;
+//     // else if (sdram_ctrl.wvalid) open_write <= 0;
 
-    if (rst) begin
-        read_ctr <= '0;
-        write_ctr <= '0;
-    end
-end
+//     if (rst) begin
+//         read_ctr <= '0;
+//         write_ctr <= '0;
+//     end
+// end
 
 assign axi_if.arready = rd_ack;
 assign axi_if.awready = wr_ack;

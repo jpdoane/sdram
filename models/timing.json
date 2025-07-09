@@ -1,0 +1,22 @@
+{ signal: [
+    ['FPGA out',
+    { name: "clk",          wave: "P....", node: "A" },
+    { name: "clk_sdram",    wave: "P....", node: "B" , phase: -2 },
+    { name: "cmd/wr",         wave: "x2xxx", node: ".D" },
+    { name: "rd",         wave: "xxx2x", phase: -1.6 },
+    ],
+    ['SDRAM',
+    { name: "clk_sdram",    wave: "P...." , node: "CFHJ", phase: -3 },
+    { name: "cmd/wr",         wave: "x2xxx", node: ".EG", phase: -1 },
+    { name: "rd",         wave: "xxx2x", node: "...IK",phase: -0.8 },
+    ],
+    ['FPGA in',
+    { name: "clk",          wave: "P....", node: "....M" },
+    { name: "rd",         wave: "xxx2x", node: "...LN", phase: -1.8 },
+    ]
+  ],
+  edge: ["A~B tPLL", "B~C tPCB", "I~L tPCB", "D~E tPCB", "E~F tWS",
+        "F~G tWH", "F->J CAS", "H~I tAC", "J~K tRH",
+        "L~M setup", "M~N hold"],
+  config: { hscale: 4 }
+}

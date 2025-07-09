@@ -1,25 +1,32 @@
 `timescale 1ns/1ps
 
-`define DEBUG (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)
-
 module sdram_io
 #( parameter real CLK_MHZ = 50)
 (
     // internal io w/ core
-    input logic clk, rst,
-    sdram_dev_if.sub dev_if,
+    input         clk, rst,
+    input          sdram_core_cke,
+    input          sdram_core_cs,
+    input [2:0]    sdram_core_cmd,
+    input [  1:0]  sdram_core_dqm,
+    input [ 12:0]  sdram_core_addr,
+    input [  1:0]  sdram_core_ba,
+    input [ 15:0]  sdram_core_data_output,
+    input          sdram_core_data_out_en,
+    output  [ 15:0] sdram_core_data_input,
+
 
     // external pin io
-    (* IOB = "TRUE" *) output          clk_sdram,
-    (* IOB = "TRUE" *) output          sdram_cke,
-    (* IOB = "TRUE" *) output          sdram_cs_n,
-    (* IOB = "TRUE" *) output          sdram_ras_n,
-    (* IOB = "TRUE" *) output          sdram_cas_n,
-    (* IOB = "TRUE" *) output          sdram_we_n,
-    (* IOB = "TRUE" *) output [1:0]    sdram_dqm,
-    (* IOB = "TRUE" *) output [12:0]   sdram_a,
-    (* IOB = "TRUE" *) output [ 1:0]   sdram_ba,
-    (* IOB = "TRUE" *) inout  [15:0]   sdram_dq
+    output          clk_sdram,
+    output          sdram_cke,
+    output          sdram_cs_n,
+    output          sdram_ras_n,
+    output          sdram_cas_n,
+    output          sdram_we_n,
+    output [1:0]    sdram_dqm,
+    output [12:0]   sdram_a,
+    output [ 1:0]   sdram_ba,
+    inout  [15:0]   sdram_dq
 );
 
 localparam real CLK_PERIOD_NS       = 1000.0 / CLK_MHZ;
@@ -49,7 +56,6 @@ PLLE2_BASE_inst (
    .CLKFBIN(clkf_buf2)
 );
 
-
   BUFG clk_bufg
    (.O (clk_buf),
     .I (clk));
@@ -63,52 +69,15 @@ PLLE2_BASE_inst (
    (.O   (clk_sdram),
     .I   (clk_sdram_pll));
 
-
-  // ODDR2 
-  // #(
-  //     .DDR_ALIGNMENT("NONE"),
-  //     .INIT(1'b0),
-  //     .SRTYPE("SYNC")
-  // )
-  // u_clock_delay
-  // (
-  //     .Q(clk_sdram),
-  //     .C0(clk),
-  //     .C1(~clk),
-  //     .CE(1'b1),
-  //     .R(1'b0),
-  //     .S(1'b0),
-  //     .D0(1'b0),
-  //     .D1(1'b1)
-  // );
-
-  // ODDR
-  // #(
-  //     .DDR_CLK_EDGE("OPPOSITE_EDGE"),
-  //     .INIT(1'b0),
-  //     .SRTYPE("SYNC")
-  // )
-  // u_clock_delay
-  // (
-  //  .Q(clk_sdram), 
-  //  .C(clk),       
-  //  .CE(1'b1),     
-  //  .D1(1'b1),     
-  //  .D2(1'b0),     
-  //  .R(1'b0),      
-  //  .S(1'b1)       
-  // );
-
-
-
-  assign sdram_cke = dev_if.cke;
-  assign sdram_cs_n = dev_if.cs;
-  assign sdram_ras_n = dev_if.cmd[2];
-  assign sdram_cas_n = dev_if.cmd[1];
-  assign sdram_we_n = dev_if.cmd[0];
-  assign sdram_dqm = dev_if.dqm;
-  assign sdram_ba = dev_if.ba;
-  assign sdram_a = dev_if.addr;
+    
+  assign sdram_cke = sdram_core_cke;
+  assign sdram_cs_n = sdram_core_cs;
+  assign sdram_ras_n = sdram_core_cmd[2];
+  assign sdram_cas_n = sdram_core_cmd[1];
+  assign sdram_we_n = sdram_core_cmd[0];
+  assign sdram_dqm = sdram_core_dqm;
+  assign sdram_a = sdram_core_addr;
+  assign sdram_ba = sdram_core_ba;
 
 
   genvar i;
@@ -122,12 +91,12 @@ PLLE2_BASE_inst (
     )
     u_data_buf
     (
-      .O(dev_if.read_data[i]),
+      .O(sdram_core_data_input[i]),
       .IO(sdram_dq[i]),
-      .I(dev_if.write_data[i]),
-      .T(~dev_if.wr_en)
+      .I(sdram_core_data_output[i]),
+      .T(~sdram_core_data_out_en)
     );
   end
 
-endmodule
 
+endmodule
