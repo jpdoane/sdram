@@ -42,7 +42,7 @@ interface sdram_dev_if
     logic [ 2:0]            cmd;
     logic [ 1:0]            dqm;
     logic [ROW_WIDTH-1:0]   addr;
-    logic [ 1:0]            ba;
+    logic [BANK_WIDTH-1:0]  ba;
     logic [15:0]            read_data;
     logic [15:0]            write_data;
     logic                   wr_en;

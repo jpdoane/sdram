@@ -182,7 +182,7 @@ module zynq_sdram
         .sdram_we_n              (sdram_we_n),
         .sdram_dqm              (sdram_dqm),
         .sdram_a                 (sdram_a),
-        .sdram_ba                (sdram_bs),
+        .sdram_ba                (sdram_ba),
         .sdram_dq                (sdram_dq)
     );
 

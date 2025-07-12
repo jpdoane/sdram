@@ -6,12 +6,8 @@ VIEWER := gtkwave
 SIMCOMPFLAGS := -g2012
 SIMFLAGS := 
 
-SRCS =
-# SRCS += ../hdl/sdram_core.sv
-SRCS += ../hdl/sdram_core_pc2.sv
-SRCS += ../hdl/sdram_core_ref.sv
+SRCS = ../hdl/sdram_core.sv
 SRCS += ../hdl/sdram_if.sv
-# SRCS += ../hdl/sdram_arb.sv
 SRCS += ../hdl/axil_sdram.sv
 SRCS += ../hdl/taxi_axil_if.sv
 MODELSRC = ../models/MT48LC8M16A2.sv

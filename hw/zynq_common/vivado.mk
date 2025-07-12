@@ -147,7 +147,6 @@ $(BUILD)/$(PROJECT).runs/synth_1/$(PROJECT).dcp: $(SYN_FILES) $(INC_FILES) $(XDC
 	echo "launch_runs -jobs 8 synth_1" >> $(BUILD)/run_synth.tcl
 	echo "wait_on_run synth_1" >> $(BUILD)/run_synth.tcl
 	echo "open_run synth_1" >> $(BUILD)/run_synth.tcl
-	echo "source $(ZYNQ_COMMON)/insert_ila.tcl" >> $(BUILD)/run_synth.tcl
 	cd $(BUILD); vivado -nojournal -nolog -mode batch -source $(BUILD)/run_synth.tcl
 
 # synthesis run

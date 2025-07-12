@@ -54,7 +54,7 @@ localparam int DELAY_REF_INTERVAL   = 389; //int'($ceil(tREF_NS/8192/CLK_PERIOD_
 localparam int DELAY_RC             = int'($ceil(tRC_NS / CLK_PERIOD_NS));
 localparam int DELAY_RCD            = int'($ceil(tRCD_NS/CLK_PERIOD_NS));
 localparam int DELAY_RP             = 1; //int'($ceil(tRP_NS/CLK_PERIOD_NS));
-localparam int DELAY_DAL            = DELAY_WR + DELAY_RP;
+// localparam int DELAY_DAL            = DELAY_WR + DELAY_RP;
 
 // sdram control words for sd_cmd
 localparam CTRL_ACTIVATE           = 3'b011;
@@ -119,10 +119,10 @@ assign active = rd | wr | valid_req;
 
 // sdram dev signals
 logic [2:0] sd_cmd;
-logic [1:0] bank, bank_req, sd_ba;
-logic [ROW_WIDTH-1:0] row, row_req, sd_addr;
-logic [COL_WIDTH-1:0] col, col_req;
-logic byte_misalign, byte_req, row_hit;
+(* keep = "true" *) logic [BANK_WIDTH-1:0] bank, bank_req, sd_ba;
+(* keep = "true" *) logic [ROW_WIDTH-1:0] row, row_req, sd_addr;
+(* keep = "true" *) logic [COL_WIDTH-1:0] col, col_req;
+(* keep = "true" *) logic byte_misalign, byte_req, row_hit;
 logic [DATA_WIDTH-1:0] write_data;
 logic [N_BANKS-1:0]  row_open;
 logic [ROW_WIDTH-1:0]  active_row[N_BANKS-1:0];
@@ -130,7 +130,9 @@ logic [ROW_WIDTH-1:0]  active_row[N_BANKS-1:0];
 logic sd_wr;
 
 // assign {bank_req, row_req, col_req, byte_req} = ctrl_if.addr[DEV_ADDR_WIDTH:0];
-assign {row_req, bank_req, col_req, byte_req} = ctrl_if.addr[DEV_ADDR_WIDTH:0];
+(* keep = "true" *) wire [DEV_ADDR_WIDTH:0] ctrl_addr = ctrl_if.addr[DEV_ADDR_WIDTH:0];
+assign {row_req, bank_req, col_req, byte_req} = ctrl_addr;
+
 assign row_hit = active_row[bank_req] == row_req;
 
 assign last_cycle = cnt==state_delay;
@@ -268,13 +270,12 @@ begin
             sd_ba = bank;
             open_row = 1;
             state_next = rd ? STATE_READ : STATE_WRITE;
-            state_delay = CNT_W'(1); //`DELAY(DELAY_RCD-1, CNT_W);
+            state_delay = CNT_W'(1);
          end
         STATE_READ: begin 
             if(first_cycle) sd_cmd = CTRL_READ;
             sd_ba = bank;
             sd_addr[COL_WIDTH-1:0] = col;
-            // sd_addr[10] = 1'b1; // auto precharge
             state_delay = CNT_W'(CAS_LATENCY+BURST_SIZE);
             state_next = STATE_READ2;
         end
