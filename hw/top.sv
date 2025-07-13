@@ -113,60 +113,12 @@ module zynq_sdram
         .sdram_ctrl (ctrl_if)
     );
 
-  wire          dev_cke;
-  wire          dev_cs;
-  wire [  2:0]  dev_cmd;
-  wire [  1:0]  dev_dqm;
-  wire [ 12:0]  dev_addr;
-  wire [  1:0]  dev_ba;
-  wire [ 15:0]  dev_write_data;
-  wire          dev_wr_en;
-  wire  [ 15:0] dev_read_data;
-
-    sdram_core_pc u_sdram_core(
+    sdram_core u_sdram_core(
         .clk      (ACLK      ),
         .rst      (ARST      ),
         .ctrl_if  (ctrl_if),
         .dev_if  (dev_if)
-        // .dev_cke    (dev_cke),
-        // .dev_cs (dev_cs),
-        // .dev_cmd    (dev_cmd),
-        // .dev_dqm    (dev_dqm),
-        // .dev_addr   (dev_addr),
-        // .dev_ba (dev_ba),
-        // .dev_write_data (dev_write_data),
-        // .dev_wr_en  (dev_wr_en),
-        // .dev_read_data          (dev_read_data)
     );    
-
-
-// sdram_io
-// u_sdram_io
-// (
-//     .clk                     (ACLK),
-//     .rst                     (ARST),
-//     .sdram_core_cke          (dev_cke),
-//     .sdram_core_cs           (dev_cs),
-//     .sdram_core_cmd          (dev_cmd),
-//     .sdram_core_dqm          (dev_dqm),
-//     .sdram_core_addr         (dev_addr),
-//     .sdram_core_ba           (dev_ba),
-//     .sdram_core_data_output  (dev_write_data),
-//     .sdram_core_data_out_en  (dev_wr_en),
-//     .sdram_core_data_input   (dev_read_data),
-//     .clk_sdram               (clk_sdram),
-//     .sdram_cke               (sdram_cke),
-//     .sdram_cs_n              (sdram_cs_n),
-//     .sdram_ras_n             (sdram_ras_n),
-//     .sdram_cas_n             (sdram_cas_n),
-//     .sdram_we_n              (sdram_we_n),
-//     .sdram_dqm                (sdram_dqm),
-//     .sdram_a                 (sdram_a),
-//     .sdram_ba                (sdram_ba),
-//     .sdram_dq                (sdram_dq)
-// );
-
-
 
     sdram_io
     u_sdram_io

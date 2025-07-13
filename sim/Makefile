@@ -28,26 +28,14 @@ $(OBJDIR):
 $(OBJDIR)/V%: %.sv $(SRCS) $(MODELSRC) | $(OBJDIR)
 	verilator $(VERILATOR_FLAGS) --top $(basename $(notdir $<)) $^
 
-test: $(OBJDIR)/Vsdram_pc_tb
-	$< $(VERILATOR_RUN_FLAGS)
-
-testpc: $(OBJDIR)/Vsdram_pc_tb
+test: $(OBJDIR)/Vsdram_tb
 	$< $(VERILATOR_RUN_FLAGS)
 
 testaxi: $(OBJDIR)/Vsdram_axil_tb
 	$< $(VERILATOR_RUN_FLAGS)
 
-testarb: $(OBJDIR)/Vsdram_arb_tb
-	$< $(VERILATOR_RUN_FLAGS)
-
-testref: $(OBJDIR)/Vsdram_ref_tb
-	$< $(VERILATOR_RUN_FLAGS)
-
 view: $(VCD)
 	gtkwave $(VCD) -a waves.gtkw&
-
-viewref:
-	gtkwave sdram_ref.vcd -a waves_ref.gtkw&
 
 clean:
 	-@rm -rf obj_dir

@@ -141,17 +141,16 @@ set_property -dict {PACKAGE_PIN U10 IOSTANDARD LVCMOS33} [get_ports {sdram_ba[1]
 set_property -dict {PACKAGE_PIN F19 IOSTANDARD LVCMOS33} [get_ports {sdram_dqm[0]}]
 set_property -dict {PACKAGE_PIN F20 IOSTANDARD LVCMOS33} [get_ports {sdram_dqm[1]}]
 
-# set_max_delay -datapath_only -from [all_registers] -to [get_ports clk_sdram] 4
-# set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_cke] 4
-# set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_cs_n] 4
-# set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_ras_n] 4
-# set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_cas_n] 4
-# set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_we_n] 4
-# set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_dqm] 4
-# set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_a] 4
-# set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_ba] 4
-# set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_dq] 4
-# set_max_delay -datapath_only -from [get_ports sdram_dq] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports clk_sdram] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_cke] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_cs_n] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_ras_n] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_cas_n] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_we_n] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_dqm] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_a] 4
+set_max_delay -datapath_only -from [all_registers] -to [get_ports sdram_ba] 4
+set_max_delay -datapath_only -from [get_ports sdram_dq] 4
 
 # set_property -dict { PACKAGE_PIN C20   IOSTANDARD LVCMOS33 } [get_ports { ck_a[8]  }]; #IO_L1P_T0_AD0P_35       Sch=AD0_P
 # set_property -dict { PACKAGE_PIN B20   IOSTANDARD LVCMOS33 } [get_ports { ck_a[9]  }]; #IO_L1N_T0_AD0N_35       Sch=AD0_N

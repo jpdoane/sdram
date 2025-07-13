@@ -20,6 +20,17 @@ module sdram_io
     (* IOB = "TRUE" *) inout  [15:0]   sdram_dq
 );
 
+  // ODDR u_clock_delay
+  // (
+  //  .Q(clk_sdram), 
+  //  .C(clk),       
+  //  .CE(1'b1),     
+  //  .D1(1'b1),     
+  //  .D2(1'b0),     
+  //  .R(1'b0),      
+  //  .S(1'b1)       
+  // );
+
   ODDR2 
   #(
       .DDR_ALIGNMENT("NONE"),
@@ -46,7 +57,6 @@ module sdram_io
   assign sdram_dqm = dev_if.dqm;
   assign sdram_ba = dev_if.ba;
   assign sdram_a = dev_if.addr;
-
 
   genvar i;
   for (i=0; i < 16; i = i + 1) 

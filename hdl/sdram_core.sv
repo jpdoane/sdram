@@ -1,9 +1,6 @@
 `timescale 1ns / 100ps
 
-`define MAX(a,b) ((a) > (b) ? (a) : (b))
-`define DELAY(cycles, bits) `MAX(bits'(cycles),bits'(0))
-
-module sdram_core_pc #(
+module sdram_core #(
     parameter real FREQ_MHZ     = 50,
     parameter int COL_WIDTH     = 9,
     parameter int ROW_WIDTH     = 13,
@@ -21,22 +18,10 @@ module sdram_core_pc #(
     parameter int DELAY_RRD     = 2,           // min clocks between row activations (different bank)
     parameter int DELAY_RSC     = 2
     )(
-    // main clocks
     input logic clk, rst,
+
     sdram_ctrl_if.sub ctrl_if,
-
-    // output logic          dev_cke,
-    // output logic          dev_cs,
-    // output logic [2:0]    dev_cmd,
-    // output logic [  1:0]  dev_dqm,
-    // output logic [ 12:0]  dev_addr,
-    // output logic [  1:0]  dev_ba,
-    // output logic [ 15:0]  dev_write_data,
-    // output logic          dev_wr_en,
-    // input  logic [ 15:0]  dev_read_data
-
     sdram_dev_if.man dev_if
-
 );
 
 localparam int DEV_ADDR_WIDTH  = COL_WIDTH + ROW_WIDTH + BANK_WIDTH;
@@ -47,14 +32,13 @@ localparam int ADDR_WIDTH    = ctrl_if.ADDR_WIDTH;
 localparam int WORD_LEN     = ctrl_if.WORD_LEN;
 
 localparam int CNT_W                = 4;
-localparam int CNT2_W               = 16;
+localparam int CNTRST_W             = 16;
 localparam real CLK_PERIOD_NS       = 1000.0 / FREQ_MHZ;
-localparam int DELAY_STARTUP        = int'($ceil(STARTUP_US * FREQ_MHZ));
-localparam int DELAY_REF_INTERVAL   = 389; //int'($ceil(tREF_NS/8192/CLK_PERIOD_NS));
+localparam int DELAY_STARTUP        = int'($ceil(STARTUP_US * FREQ_MHZ) + 100);
+localparam int DELAY_REF_INTERVAL   = int'($ceil(tREF_NS/8192/CLK_PERIOD_NS));
 localparam int DELAY_RC             = int'($ceil(tRC_NS / CLK_PERIOD_NS));
 localparam int DELAY_RCD            = int'($ceil(tRCD_NS/CLK_PERIOD_NS));
-localparam int DELAY_RP             = 1; //int'($ceil(tRP_NS/CLK_PERIOD_NS));
-// localparam int DELAY_DAL            = DELAY_WR + DELAY_RP;
+localparam int DELAY_RP             = int'($ceil(tRP_NS/CLK_PERIOD_NS));
 
 // sdram control words for sd_cmd
 localparam CTRL_ACTIVATE           = 3'b011;
@@ -99,7 +83,7 @@ logic [3:0] state_next, state_req;
 logic new_state;
 logic [CNT_W-1:0] cnt, state_delay;
 logic first_cycle, last_cycle;
-logic [CNT2_W-1:0] cnt2;
+logic [CNTRST_W-1:0] cnt_reset;
 logic trigger_refresh, refresh_ack, boot_complete;
 logic open_row, close_row, close_all_rows;
 logic active;
@@ -107,7 +91,7 @@ logic rd, wr;
 logic [WORD_LEN-1:0] wr_strobe;
 
 // command port signals
-logic rdy, rvalid, wvalid, req, valid_req;
+logic rdy, set_wvalid, set_rvalid, rvalid, wvalid, req, valid_req;
 assign ctrl_if.rvalid = rvalid;
 assign ctrl_if.wvalid = wvalid;
 assign ctrl_if.error = 0;
@@ -119,25 +103,33 @@ assign active = rd | wr | valid_req;
 
 // sdram dev signals
 logic [2:0] sd_cmd;
-(* keep = "true" *) logic [BANK_WIDTH-1:0] bank, bank_req, sd_ba;
-(* keep = "true" *) logic [ROW_WIDTH-1:0] row, row_req, sd_addr;
-(* keep = "true" *) logic [COL_WIDTH-1:0] col, col_req;
-(* keep = "true" *) logic byte_misalign, byte_req, row_hit;
+logic [BANK_WIDTH-1:0] bank, bank_req, sd_ba;
+logic [ROW_WIDTH-1:0] row, row_req, sd_addr;
+logic [COL_WIDTH-1:0] col, col_req;
+logic byte_misalign, byte_req, row_hit;
 logic [DATA_WIDTH-1:0] write_data;
 logic [N_BANKS-1:0]  row_open;
 logic [ROW_WIDTH-1:0]  active_row[N_BANKS-1:0];
-
 logic sd_wr;
+
+wire [DATA_WIDTH-1:0]   read_word;
+logic [15:0]            read_data, read_data_r;
+logic running;
 
 // assign {bank_req, row_req, col_req, byte_req} = ctrl_if.addr[DEV_ADDR_WIDTH:0];
 (* keep = "true" *) wire [DEV_ADDR_WIDTH:0] ctrl_addr = ctrl_if.addr[DEV_ADDR_WIDTH:0];
 assign {row_req, bank_req, col_req, byte_req} = ctrl_addr;
-
 assign row_hit = active_row[bank_req] == row_req;
 
 assign last_cycle = cnt==state_delay;
+assign read_data = dev_if.read_data;
+
 always_ff @(posedge clk)
 begin
+
+    if(boot_complete) running <= 1;
+    read_data_r <= read_data;
+
     // count cycles within each state (counts up)
     cnt <= cnt+1;
     first_cycle <= 0;
@@ -149,16 +141,19 @@ begin
     end
 
     // secondary counter for boot sequence and refresh (counts down)
-    if(cnt2==0) begin
+    if(cnt_reset==0) begin
         trigger_refresh <= 1;
-        cnt2 <= CNT2_W'(DELAY_REF_INTERVAL);
-    end else cnt2 <= cnt2-1;
+        cnt_reset <= CNTRST_W'(DELAY_REF_INTERVAL);
+    end else cnt_reset <= cnt_reset-1;
 
     if(refresh_ack) trigger_refresh <= 0;
 
     if(rvalid) rd <= 0;
     if(wvalid) wr_strobe <= '0;
 
+    rvalid <= set_rvalid;
+    wvalid <= set_wvalid;
+    
     if (valid_req) begin
         write_data <= ctrl_if.write_data;
         bank <= bank_req;
@@ -180,10 +175,8 @@ begin
         state <= STATE_BOOT;
         cnt <= 0;
         first_cycle <= 0;
-
-        cnt2 <= CNT2_W'(DELAY_STARTUP+100);
+        cnt_reset <= CNTRST_W'(DELAY_STARTUP);
         trigger_refresh <= 0;
-
         bank <= 0;
         row <= 0;
         col <= 0;
@@ -191,6 +184,10 @@ begin
         rd <= 0;
         wr_strobe <= '0;
         row_open <= '0;
+        read_data_r <= '0;
+        running <= 0;
+        rvalid <= 0;
+        wvalid <= 0;
     end 
 end
 
@@ -207,8 +204,8 @@ begin
     state_next = state;
     state_delay = '0;
     refresh_ack = 0;
-    rvalid = 0;
-    wvalid = 0;
+    set_rvalid = 0;
+    set_wvalid = 0;
 
     close_row = 0;
     close_all_rows = 0;
@@ -216,7 +213,7 @@ begin
 
     case(state)
         STATE_BOOT: begin 
-            case(cnt2)
+            case(cnt_reset)
                 50: boot_complete = 1;
                 40: begin sd_cmd = CTRL_PRECHARGE; sd_addr[10] = 1'b1; end
                 30: sd_cmd = CTRL_AUTO_REFRESH;
@@ -244,9 +241,9 @@ begin
         STATE_REFRESH: begin
             if(first_cycle) sd_cmd = CTRL_AUTO_REFRESH;
             refresh_ack = 1;
-            // state_delay = CNT_W'(DELAY_RC-1);
-            state_delay = CNT_W'(4);
-            rdy = last_cycle;
+            state_delay = CNT_W'(DELAY_RC-1);
+            // state_delay = CNT_W'(4);
+            // rdy = last_cycle;
             state_next = active ? STATE_ACTIVATE : STATE_IDLE;
         end
         STATE_IDLE: begin  
@@ -276,23 +273,23 @@ begin
             if(first_cycle) sd_cmd = CTRL_READ;
             sd_ba = bank;
             sd_addr[COL_WIDTH-1:0] = col;
-            state_delay = CNT_W'(CAS_LATENCY+BURST_SIZE);
-            state_next = STATE_READ2;
-        end
-        STATE_READ2: begin 
-            rvalid = 1;
+            state_delay = CNT_W'(CAS_LATENCY+BURST_SIZE-2);
+            set_rvalid = last_cycle;
             state_next = STATE_IDLE;
-            // rdy = 1;
-            // if(ctrl_if.rd) begin
-            //     if (row_open[bank_req]) begin
-            //         if (row_hit) state_req = STATE_READ;
-            //         else state_req = STATE_PRECHARGE;
-            //     end else begin
-            //         state_req = STATE_ACTIVATE;
-            //     end
-            // end
-            // else state_next = STATE_IDLE;
         end
+        // STATE_READ2: begin 
+        //     state_next = STATE_IDLE;
+        //     // rdy = 1;
+        //     // if(ctrl_if.rd) begin
+        //     //     if (row_open[bank_req]) begin
+        //     //         if (row_hit) state_req = STATE_READ;
+        //     //         else state_req = STATE_PRECHARGE;
+        //     //     end else begin
+        //     //         state_req = STATE_ACTIVATE;
+        //     //     end
+        //     // end
+        //     // else state_next = STATE_IDLE;
+        // end
         STATE_WRITE: begin 
             if(first_cycle) begin
                 sd_cmd = CTRL_WRITE;
@@ -301,40 +298,26 @@ begin
             sd_ba = bank;
             sd_addr[COL_WIDTH-1:0] = col;
             // sd_addr[10] = 1'b1; // auto precharge
-            state_next = STATE_WRITE2;
-        end
-        STATE_WRITE2: begin 
-            wvalid = 1;
+            set_wvalid = last_cycle;
             state_next = STATE_IDLE;
-            // rdy = 1;
-            // if(!ctrl_if.wr) begin
-            //     if (row_open[bank_req]) begin
-            //         if (row_hit) state_next = STATE_WRITE;
-            //         else state_next = STATE_PRECHARGE;
-            //     end else begin
-            //         state_next = STATE_ACTIVATE;
-            //     end
-            // end            
-            // else state_next = STATE_IDLE;
-        end        
+        end
+        // STATE_WRITE2: begin 
+        //     set_wvalid = 1;
+        //     state_next = STATE_IDLE;
+        //     // rdy = 1;
+        //     // if(!ctrl_if.wr) begin
+        //     //     if (row_open[bank_req]) begin
+        //     //         if (row_hit) state_next = STATE_WRITE;
+        //     //         else state_next = STATE_PRECHARGE;
+        //     //     end else begin
+        //     //         state_next = STATE_ACTIVATE;
+        //     //     end
+        //     // end            
+        //     // else state_next = STATE_IDLE;
+        // end        
         default: begin end
     endcase
 end
-
-wire [DATA_WIDTH-1:0] data_read;
-logic [15:0]            dev_read_data0;
-logic [15:0]            dev_read_data1;
-
-generate
-    if(DATA_WIDTH == 8) begin
-        assign data_read = byte_misalign ? dev_read_data0[15:8] : dev_read_data0[7:0];
-    end else if(DATA_WIDTH == 16) begin
-        assign data_read = dev_read_data0;
-    end else begin //DATA_WIDTH == 32
-        assign data_read = {dev_read_data0, dev_read_data1};
-    end
-endgenerate
-assign ctrl_if.read_data = rvalid ? data_read : '0;
 
 // write data and mask
 logic [1:0] wr_mask;
@@ -345,9 +328,11 @@ generate
         assign wr_en = sd_wr;
         assign wr_mask = {~byte_misalign, byte_misalign};
         assign wr_data = {write_data, write_data};
+        assign read_word = byte_misalign ? read_data[15:8] : read_data[7:0];
     end else if(DATA_WIDTH == 16) begin
         assign wr_mask = sd_wr ? ~wr_strobe : '0;
         assign wr_data = sd_wr ? write_data : '0;
+        assign read_word = read_data;
     end else begin //DATA_WIDTH == 32
         logic sd_wr2;
         always_ff @(posedge clk) begin
@@ -359,60 +344,20 @@ generate
         assign wr_en = sd_wr | sd_wr2;
         assign wr_data = sd_wr2 ? write_data[31:16] : write_data[15:0];
         assign wr_mask = sd_wr2 ? ~wr_strobe[3:2]: ~wr_strobe[1:0];
+        assign read_word = {read_data, read_data_r};
     end
 endgenerate
 
+assign ctrl_if.read_data = rvalid ? read_word : '0;
 
-logic          dev_cke;
-logic          dev_cs;
-logic [2:0]    dev_cmd;
-logic [  1:0]  dev_dqm;
-logic [ 12:0]  dev_addr;
-logic [  1:0]  dev_ba;
-logic [ 15:0]  dev_write_data;
-logic          dev_wr_en;
-logic [ 15:0]  dev_read_data;
+assign dev_if.cke = running;
+assign dev_if.cs = '0;
+assign dev_if.cmd = sd_cmd;
+assign dev_if.dqm = wr_en ? wr_mask : '0;;
+assign dev_if.addr = sd_addr;
+assign dev_if.ba = sd_ba;
+assign dev_if.write_data = wr_data;
+assign dev_if.wr_en = wr_en;
 
-logic running;
-always_ff @(posedge clk)
-begin
-    if(boot_complete) running <= 1;
-
-    if(running) begin
-        dev_cmd <= sd_cmd;
-        dev_cke <= 1;
-        dev_dqm <= wr_en ? wr_mask : '0;
-        dev_addr <= sd_addr;
-        dev_ba <= sd_ba;
-        dev_write_data <= wr_en ? wr_data : '0;;;
-        dev_wr_en <= wr_en;
-        dev_read_data0 <= dev_read_data;
-        dev_read_data1 <= dev_read_data0;
-    end
-
-    if(rst) begin
-        dev_cke <= 0;
-        dev_cs <= '0;
-        dev_cmd <= CTRL_NOP;
-        dev_dqm <= 2'b11;
-        dev_addr <= '0;
-        dev_ba <= '0;
-        dev_write_data <= '0;
-        dev_wr_en <= '0;
-        dev_read_data0 <= '0;
-        dev_read_data1 <= '0;
-        running <= 0;
-    end
-end
-
-assign dev_if.cke = dev_cke;
-assign dev_if.cs = dev_cs;
-assign dev_if.cmd = dev_cmd;
-assign dev_if.dqm = dev_dqm;
-assign dev_if.addr = dev_addr;
-assign dev_if.ba = dev_ba;
-assign dev_if.write_data = dev_write_data;
-assign dev_if.wr_en = dev_wr_en;
-assign dev_read_data = dev_if.read_data;
 
 endmodule

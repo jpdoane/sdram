@@ -48,17 +48,19 @@ module sdram_tb;
         #HALF_CLK_PERIOD;
         clk = ~clk;
     end
-    // clock ram with 90deg lag
-    wire #QTR_CLK_PERIOD sdram_clk = clk; 
+
+    wire #HALF_CLK_PERIOD sdram_clk = clk; 
 
     sdram_ctrl_if #(.ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH)) ctrl_if();
     sdram_dev_if #(.ADDR_WIDTH(SDADDR_WIDTH), .COL_WIDTH(COL_WIDTH)) dev_if();
     
     logic [ADDR_WIDTH-1:0] addr;
     logic [DATA_WIDTH-1:0] read_data, write_data;
+    logic valid;
     always begin
         while(rst) @(posedge clk);
     
+        valid = 1;
         repeat(10) begin
             addr = $urandom();
             write_data = $urandom();
@@ -83,29 +85,21 @@ module sdram_tb;
             while(~ctrl_if.rvalid) @(posedge clk);
             read_data = ctrl_if.read_data;
             if(read_data == write_data) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, read_data, addr);
-            else $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x, expected 0x%0x", $time, read_data, addr, write_data);
-
+            else begin
+                $display("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x, expected 0x%0x", $time, read_data, addr, write_data);
+                valid = 0;
+            end
 
         end
+
+
+        if(valid) $display("TEST PASSED!");
+        else $display("TEST FALED!");
         
         $finish;
     end
 
     sdram_core
-    #(
-        .FREQ_MHZ      (FREQ_MHZ),
-        .CAS_LATENCY    (CAS_LATENCY),
-        .tRC_NS         (tRC_NS),
-        .tRAS_NS        (tRAS_NS),
-        .tRCD_NS        (tRCD_NS),
-        .tRP_NS         (tRP_NS),
-        .tXSR_NS        (tXSR_NS),
-        .tREF_NS        (tREF_NS),
-        .DELAY_WR       (DELAY_WR),
-        .DELAY_RRD      (DELAY_RRD),
-        .DELAY_RSC      (DELAY_RSC)
-        // .STARTUP_US     (1)
-    )
     u_sdram_controller(
         .clk      (clk      ),
         .rst      (rst      ),
@@ -123,39 +117,5 @@ module sdram_tb;
     .tRRD   (DELAY_RRD*CLK_PERIOD)
     )
     u_sdram_model(sdram_clk, dev_if.man);
-
-
-    // task write(
-    //     virtual sdram_ctrl_if ctrl_if,
-    //     ref logic  clk,
-    //     input logic  [ ADDR_WIDTH-1:0]  a,
-    //     input logic  [ DATA_WIDTH-1:0]  data
-    //     );
-
-    //     ctrl_if.addr = a;
-    //     ctrl_if.write_data = data;
-    //     ctrl_if.wr = '1;
-    //     while(~ctrl_if.rdy) @(posedge clk);
-    //     @(posedge clk);
-    //     ctrl_if.wr = '0;
-    //     ctrl_if.write_data = 0;
-    //     while(~ctrl_if.wvalid) @(posedge clk);
-    // endtask
-
-    // task read(
-    //     virtual sdram_ctrl_if ctrl_if,
-    //     ref logic  clk,
-    //     input logic  [ ADDR_WIDTH-1:0]  a,
-    //     output logic  [ DATA_WIDTH-1:0]  data
-    //     );
-
-    //     ctrl_if.addr = a;
-    //     ctrl_if.rd = 1;
-    //     while(~ctrl_if.rdy) @(posedge clk);
-    //     @(posedge clk);
-    //     ctrl_if.rd = 0;
-    //     while(~ctrl_if.rvalid) @(posedge clk);
-    //     data = ctrl_if.read_data;
-    // endtask
 
 endmodule

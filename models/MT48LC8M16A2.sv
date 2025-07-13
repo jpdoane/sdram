@@ -46,7 +46,7 @@
 module MT48LC8M16A2
 #(
     parameter Debug=0,
-    parameter IO_LATENCY_NS=5,
+    parameter IO_LATENCY_NS=5.0,
     // Timing Parameters for -75 (PC133) and CAS Latency = 2
     parameter tAC  =   6.0,
     parameter tHZ  =   7.0,
@@ -72,16 +72,18 @@ module MT48LC8M16A2
     localparam dev_COL_WIDTH = sdram_dev_if.COL_WIDTH;
     localparam BANK_DEPTH = 2 ** (dev_ROW_WIDTH+dev_COL_WIDTH);                                  // 2 Meg
 
+    localparam READ_LATENCY = IO_LATENCY_NS*2;
+
     wire [15:0]            dev_read_data;
-    assign                 #IO_LATENCY_NS sdram_dev_if.read_data = dev_read_data;
-    wire                   #IO_LATENCY_NS dev_cke =        sdram_dev_if.cke;
-    wire                   #IO_LATENCY_NS dev_cs =         sdram_dev_if.cs;
-    wire [ 2:0]            #IO_LATENCY_NS dev_cmd =        sdram_dev_if.cmd;
-    wire [ 1:0]            #IO_LATENCY_NS dev_dqm =        sdram_dev_if.dqm;
-    wire [dev_ROW_WIDTH-1:0]   #IO_LATENCY_NS dev_addr =   sdram_dev_if.addr;
-    wire [ 1:0]            #IO_LATENCY_NS dev_ba =         sdram_dev_if.ba;
-    wire [15:0]            #IO_LATENCY_NS dev_write_data = sdram_dev_if.write_data;
-    wire                   #IO_LATENCY_NS dev_wr_en =      sdram_dev_if.wr_en;
+    wire                    dev_cke =        sdram_dev_if.cke;
+    wire                    dev_cs =         sdram_dev_if.cs;
+    wire [ 2:0]             dev_cmd =        sdram_dev_if.cmd;
+    wire [ 1:0]             dev_dqm =        sdram_dev_if.dqm;
+    wire [dev_ROW_WIDTH-1:0]    dev_addr =   sdram_dev_if.addr;
+    wire [ 1:0]             dev_ba =         sdram_dev_if.ba;
+    wire [15:0]             dev_write_data = sdram_dev_if.write_data;
+    wire                    dev_wr_en =      sdram_dev_if.wr_en;
+    assign                 #READ_LATENCY sdram_dev_if.read_data = dev_read_data;
 
 
     reg       [15 : 0] Bank0 [0 : BANK_DEPTH-1];
