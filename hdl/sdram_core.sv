@@ -1,4 +1,5 @@
-`timescale 1ns / 100ps
+`timescale 1ns/1ps
+
 
 module sdram_core #(
     parameter real FREQ_MHZ     = 50,

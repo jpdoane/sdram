@@ -1,5 +1,6 @@
 
-`timescale 1ns / 100ps
+`timescale 1ns/1ps
+
 
 // arbitrate sdram access for two ports
 // on simultaneous request, port A has priority

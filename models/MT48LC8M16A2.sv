@@ -41,11 +41,11 @@
 
 // make separate rd/wr bus to avoid tristate sim issues
 
-`timescale 1ns / 100ps
+`timescale 1ns/1ps
  
 module MT48LC8M16A2
 #(
-    parameter Debug=0,
+    parameter Debug=1,
     parameter IO_LATENCY_NS=5.0,
     // Timing Parameters for -75 (PC133) and CAS Latency = 2
     parameter tAC  =   6.0,
@@ -206,6 +206,7 @@ module MT48LC8M16A2
     end
  
     always @ (posedge Sys_clk) begin
+
         // Internal Commamd Pipelined
         Command[0] = Command[1];
         Command[1] = Command[2];
@@ -898,6 +899,7 @@ module MT48LC8M16A2
  
     task Burst;
         begin
+
             // Advance Burst Counter
             Burst_counter = Burst_counter + 1;
  

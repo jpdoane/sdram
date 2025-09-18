@@ -1,0 +1,48 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Wed Sep 17 02:13:51 2025
+[*]
+[dumpfile] "/home/jpdoane/dev/sdram/sim2/axi_sdram.fst"
+[dumpfile_mtime] "Wed Sep 17 02:10:35 2025"
+[dumpfile_size] 6149
+[savefile] "/home/jpdoane/dev/sdram/sim2/axi_sdram.sav"
+[timestart] 145
+[size] 1920 1015
+[pos] -461 -208
+*-9.000000 3445 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] sdram_axi_tb.
+[treeopen] sdram_axi_tb.sdram_axil_tb.
+[sst_width] 308
+[signals_width] 244
+[sst_expanded] 1
+[sst_vpaned_height] 288
+@800201
+-axi
+@29
+sdram_axi_tb.sdram_axil_tb.clk
+@23
+sdram_axi_tb.sdram_axil_tb.axi_if.awaddr[31:0]
+sdram_axi_tb.sdram_axil_tb.axi_if.wdata[31:0]
+@29
+sdram_axi_tb.sdram_axil_tb.axi_if.awready
+sdram_axi_tb.sdram_axil_tb.axi_if.wvalid
+sdram_axi_tb.sdram_axil_tb.axi_if.awvalid
+sdram_axi_tb.sdram_axil_tb.axi_if.wready
+@23
+sdram_axi_tb.sdram_axil_tb.axi_if.wstrb[3:0]
+@29
+sdram_axi_tb.sdram_axil_tb.axi_if.bvalid
+sdram_axi_tb.sdram_axil_tb.axi_if.bready
+@23
+sdram_axi_tb.sdram_axil_tb.axi_if.araddr[31:0]
+@29
+sdram_axi_tb.sdram_axil_tb.axi_if.arvalid
+sdram_axi_tb.sdram_axil_tb.axi_if.arready
+sdram_axi_tb.sdram_axil_tb.axi_if.rvalid
+sdram_axi_tb.sdram_axil_tb.axi_if.rready
+@23
+sdram_axi_tb.sdram_axil_tb.axi_if.rdata[31:0]
+@1000201
+-axi
+[pattern_trace] 1
+[pattern_trace] 0

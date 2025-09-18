@@ -1,4 +1,5 @@
-`timescale 1ns / 100ps
+`timescale 1ns/1ps
+
 
 // `define DEBUG (* keep="true",mark_debug="true",mark_debug_clock="u_zynq/processing_system7_0/inst/FCLK_CLK0" *)
 
@@ -84,12 +85,12 @@ always_comb begin
     sdram_ctrl.addr = '0;
     sdram_ctrl.write_data = '0;
  
-    if (wr_req) begin
+    if (wr_ack) begin
         sdram_ctrl.wr = axi_if.wstrb;
         sdram_ctrl.addr = axi_if.awaddr[ADDR_WIDTH-1:0];
         sdram_ctrl.write_data = axi_if.wdata[DATA_WIDTH-1:0];
     end
-    if (rd_req) begin
+    if (rd_ack) begin
         sdram_ctrl.rd = 1'b1;
         sdram_ctrl.addr = axi_if.araddr[ADDR_WIDTH-1:0];
     end
