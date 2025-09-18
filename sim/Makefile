@@ -1,42 +1,37 @@
-PROJ := sdram
-SIMCOMPILER := iverilog
-SIMULATOR := vvp
-VIEWER := gtkwave
+include ../inc/make.inc
 
-SIMCOMPFLAGS := -g2012
-SIMFLAGS := 
 
-SRCS = ../hdl/sdram_core.sv
-SRCS += ../hdl/sdram_if.sv
-SRCS += ../hdl/axil_sdram.sv
-SRCS += ../hdl/taxi_axil_if.sv
-MODELSRC = ../models/MT48LC8M16A2.sv
+TOP=sdram_axil_tb
+BUILD_PATH=build
 
-OBJDIR = obj_dir
-VCD = sdram.vcd
+HDL_SOURCE = 
+HDL_SOURCE += sdram_axil_tb.sv
+HDL_SOURCE += ../hdl/sdram_core.sv
+HDL_SOURCE += ../hdl/axil_sdram.sv
+HDL_SOURCE += ../hdl/sdram_if.sv
+HDL_SOURCE += ../hdl/taxi_axil_if.sv
+HDL_SOURCE += ../models/MT48LC8M16A2.sv
 
-VERILATOR_FLAGS = --binary -j 0
-VERILATOR_FLAGS += --trace
+VERILATOR_FLAGS += -DDEBUG_SDRAM=0
+VERILATOR_FLAGS += --timing # enable delays in rtl
+VERILATOR_FLAGS += --Mdir $(BUILD_PATH)
 
-all: test
+TEST_SRC=aximemtest.cpp aximem.cpp
+TEST_TARGET=$(BUILD_PATH)/memtest
 
-$(OBJDIR):
-	-mkdir -p $(OBJDIR)
+include ../inc/make.verilator
 
-# VERILATOR_RUN_FLAGS = +verilator+seed+$(shell bash -c 'echo $$RANDOM')
+CCFLAGS += -DWAVEFILE=$(TOP).fst
+CCFLAGS += -I$(BUILD_PATH)
 
-$(OBJDIR)/V%: %.sv $(SRCS) $(MODELSRC) | $(OBJDIR)
-	verilator $(VERILATOR_FLAGS) --top $(basename $(notdir $<)) $^
+.PHONY: test
+test: $(TEST_TARGET)
+	$<
 
-test: $(OBJDIR)/Vsdram_tb
-	$< $(VERILATOR_RUN_FLAGS)
+.DEFAULT_GOAL = test
 
-testaxi: $(OBJDIR)/Vsdram_axil_tb
-	$< $(VERILATOR_RUN_FLAGS)
+$(TEST_TARGET): $(TEST_SRC) $(VMODEL)
+	g++ $^ $(CCFLAGS) -g -o $@
 
-view: $(VCD)
-	gtkwave $(VCD) -a waves.gtkw&
-
-clean:
-	-@rm -rf obj_dir
-	-@rm *.vcd	
+clean::
+	rm -rf $(BUILD_PATH)

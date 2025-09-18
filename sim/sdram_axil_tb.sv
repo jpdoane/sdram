@@ -1,42 +1,107 @@
-`timescale 1ns / 1ps
-
-module sdram_axil_tb();
-    
-    initial
-     begin
-        $dumpfile("sdram.vcd");
-        $dumpvars(0,sdram_axil_tb);
-        $dumpon;
-        // #2600;
-        // $finish;
-     end
+`timescale 1ns/1ps
 
 
-    reg clk;
-    reg rst;
+module sdram_axil_tb #(
+    // Width of data bus in bits
+    parameter DATA_W = 32,
+    // Width of address bus in bits
+    parameter ADDR_W = 32,
+    // Width of wstrb (width of data bus in words)
+    parameter STRB_W = (DATA_W/8),
+    // Use awuser signal
+    parameter logic AWUSER_EN = 1'b0,
+    // Width of awuser signal
+    parameter AWUSER_W = 1,
+    // Use wuser signal
+    parameter logic WUSER_EN = 1'b0,
+    // Width of wuser signal
+    parameter WUSER_W = 1,
+    // Use buser signal
+    parameter logic BUSER_EN = 1'b0,
+    // Width of buser signal
+    parameter BUSER_W = 1,
+    // Use aruser signal
+    parameter logic ARUSER_EN = 1'b0,
+    // Width of aruser signal
+    parameter ARUSER_W = 1,
+    // Use ruser signal
+    parameter logic RUSER_EN = 1'b0,
+    // Width of ruser signal
+    parameter RUSER_W = 1,
 
-    localparam DEBUG_SDRAM=0;
+    parameter real FREQ_MHZ    = 50.0
 
-    localparam real FREQ_MHZ=50;
-    localparam real CLK_PERIOD=1000/FREQ_MHZ;
-    localparam real HALF_CLK_PERIOD=CLK_PERIOD/2;
-    localparam real QTR_CLK_PERIOD=CLK_PERIOD/4;
-    
-    initial begin
-        clk = 0;
-        rst = 1;
-        repeat(10) @(posedge clk);
-        rst = 0;
-    end
-    always begin
-        #HALF_CLK_PERIOD;
-        clk = ~clk;
-    end
-    wire #QTR_CLK_PERIOD sdram_clk = clk; 
+)
+(
+    input  logic                 clk,
+    input  logic                 rst,
+    input  logic                 sdram_clk,
+    input  logic [ADDR_W-1:0]    awaddr,
+    input  logic [2:0]           awprot,
+    input  logic [AWUSER_W-1:0]  awuser,
+    input  logic                 awvalid,
+    output logic                 awready,
+    //     W
+    input  logic [DATA_W-1:0]    wdata,
+    input  logic [STRB_W-1:0]    wstrb,
+    input  logic [WUSER_W-1:0]   wuser,
+    input  logic                 wvalid,
+    output logic                 wready,
+    //     B
+    output logic [1:0]           bresp,
+    output logic [BUSER_W-1:0]   buser,
+    output logic                 bvalid,
+    input  logic                 bready,
+    //     AR
+    input  logic [ADDR_W-1:0]    araddr,
+    input  logic [2:0]           arprot,
+    input  logic [ARUSER_W-1:0]  aruser,
+    input  logic                 arvalid,
+    output logic                 arready,
+    //     R
+    output logic [DATA_W-1:0]    rdata,
+    output logic [1:0]           rresp,
+    output logic [RUSER_W-1:0]   ruser,
+    output logic                 rvalid,
+    input  logic                 rready
+    );
+
+    // localparam DEBUG_SDRAM=0;
+    // localparam real CLK_PERIOD=1000/FREQ_MHZ;
+    // localparam real QTR_CLK_PERIOD=CLK_PERIOD/4;
+    // wire #QTR_CLK_PERIOD sdram_clk = clk; 
 
     sdram_ctrl_if sdram_ctrl_if();
     sdram_dev_if sdram_dev_if();
     taxi_axil_if axi_if();
+
+    // inputs
+    assign axi_if.awaddr = awaddr;
+    assign axi_if.awprot = awprot;
+    assign axi_if.awuser = awuser;
+    assign axi_if.awvalid = awvalid;
+    assign axi_if.wdata = wdata;
+    assign axi_if.wstrb = wstrb;
+    assign axi_if.wuser = wuser;
+    assign axi_if.wvalid = wvalid;
+    assign axi_if.bready = bready;
+    assign axi_if.araddr = araddr;
+    assign axi_if.arprot = arprot;
+    assign axi_if.aruser = aruser;
+    assign axi_if.arvalid = arvalid;
+    assign axi_if.rready = rready;
+
+    // outputs
+    assign awready = axi_if.awready;
+    assign wready = axi_if.wready;
+    assign bresp = axi_if.bresp;
+    assign buser = axi_if.buser;
+    assign bvalid = axi_if.bvalid;
+    assign arready = axi_if.arready;
+    assign rdata = axi_if.rdata;
+    assign rresp = axi_if.rresp;
+    assign ruser = axi_if.ruser;
+    assign rvalid = axi_if.rvalid;
 
     axil_sdram u_axil_sdram
     (
@@ -59,61 +124,8 @@ module sdram_axil_tb();
     );
     
     MT48LC8M16A2 #(
-    .Debug(DEBUG_SDRAM)
+    .Debug(`DEBUG_SDRAM)
     )
     u_sdram_model(sdram_clk, sdram_dev_if.man);
-
-    int rnd;
-    initial
-    begin
-        // *** Initial value ***
-        axi_if.man.awaddr = 0;
-        axi_if.man.awvalid = 0;
-        axi_if.man.wstrb = 0;
-        axi_if.man.wdata = 0;
-        axi_if.man.wvalid = 0;
-        axi_if.man.bready = 0;
-        axi_if.man.araddr = 0;
-        axi_if.man.arvalid = 0;
-        axi_if.man.rready = 0;
-
-        while(rst) @(posedge clk);
-        
-        repeat(20) begin
-            rnd = $urandom();
-
-
-            // axi_write(rnd, rnd);
-            axi_if.man.awaddr = rnd;
-            axi_if.man.wdata = rnd;
-            axi_if.man.wstrb = 4'hf;
-            axi_if.man.awvalid = 1;
-            axi_if.man.wvalid = 1;
-            while(~axi_if.man.awready) @(posedge clk);
-            @(posedge clk);
-            axi_if.man.awvalid = 0;
-            axi_if.man.wvalid = 0;
-            axi_if.man.awaddr = 0;
-            axi_if.man.wstrb = 0;
-            axi_if.man.wdata = 0;
-            axi_if.man.bready = 1;
-            while(~axi_if.man.bvalid) @(posedge clk);
-
-            // axi_read(rnd);
-            axi_if.man.araddr = rnd;
-            axi_if.man.arvalid = 1;
-            while(~axi_if.man.arready) @(posedge clk);
-            @(posedge clk);
-            axi_if.man.arvalid = 0;
-            axi_if.man.araddr = 0;
-            axi_if.man.rready = 1;
-            while(~axi_if.man.rvalid) @(posedge clk);
-
-            if(axi_if.rdata == rnd) $display("at time  %t: Read correct value 0x%0x from 0x%0x", $time, axi_if.rdata, rnd);
-            else $error("at time %t ERROR: Read incorrect value 0x%0x from 0x%0x", $time, axi_if.rdata, rnd);
-        end
-        $finish;
-    end
-
 
 endmodule

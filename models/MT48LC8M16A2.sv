@@ -192,6 +192,12 @@ module MT48LC8M16A2
         //$readmemh("bank1.txt", Bank1);
         //$readmemh("bank2.txt", Bank2);
         //$readmemh("bank3.txt", Bank3);
+
+        Command[0] = `NOP;
+        Command[1] = `NOP;
+        Command[2] = `NOP;
+        Command[3] = `NOP;
+
     end
  
     // System clock generator
@@ -204,7 +210,7 @@ module MT48LC8M16A2
             Sys_clk = 1'b0;
         end
     end
- 
+
     always @ (posedge Sys_clk) begin
 
         // Internal Commamd Pipelined

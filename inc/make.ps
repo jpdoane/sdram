@@ -1,0 +1,93 @@
+## these need to be set before including
+
+ifndef XSA
+$(error XSA is not set)
+endif
+ifndef SOURCE
+	$(error SOURCE is not set)
+endif
+
+## set these to defaults if not set
+ifeq ($(PLATFORM),)
+PLATFORM=ZYNQ_FPGA
+endif
+
+LIBS = -Wl,--start-group,-lxilffs,-lxil,-lgcc,-lc,--end-group
+
+
+BUILD=./build
+WORKSPACE=$(BUILD)/workspace
+
+# common tcl scripts
+FSBL_TCL=$(SCRIPTS)/fsbl.tcl
+LOAD_TCL=$(SCRIPTS)/load.tcl
+
+
+TOOL = arm-none-eabi
+VITIS_PATH = $(dir $(shell which xsct))
+TOOL_PATH = $(VITIS_PATH)/../gnu/aarch32/lin/gcc-$(TOOL)/bin/
+GCC = $(TOOL_PATH)/$(TOOL)-gcc
+SIZE_TOOL = $(TOOL_PATH)/$(TOOL)-size
+
+OBJECTS = $(patsubst %,$(BUILD)/%.o,$(basename $(notdir $(SOURCE))))
+TARGET=$(abspath $(BUILD)/zynq_loader.elf)
+FSBL=$(abspath $(WORKSPACE)/zynq_fsbl/Debug/zynq_fsbl.elf)
+# XSA=$(abspath $(BUILD)/$(notdir $(PL_XSA)))
+BIT=$(patsubst %.xsa,$(WORKSPACE)/$(PLATFORM)/hw/%.bit,$(notdir $(XSA)))
+BIF=$(abspath $(WORKSPACE)/output.bif)
+BOOT=$(abspath $(WORKSPACE)/BOOT.bin)
+SPEC=$(abspath $(WORKSPACE)/zynq_fsbl/src/Xilinx.spec)
+PS_INIT=$(abspath $(WORKSPACE)/$(PLATFORM)/hw/ps7_init.tcl)
+
+BSP = $(abspath ./$(WORKSPACE)/$(PLATFORM)/export/$(PLATFORM)/sw/$(PLATFORM)/A9_Standalone)
+BSP_LIBPATH = $(BSP)/bsplib/lib
+BSP_INCPATH = $(BSP)/bspinclude/include
+LINKER_SCRIPT = $(WORKSPACE)/zynq_fsbl/src/lscript.ld
+GCC_FLAGS = -Wall -O0 -g3 -c -fmessage-length=0 -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard -I$(BSP_INCPATH)
+LINKER_FLAGS = -mcpu=cortex-a9 -mfpu=vfpv3 -mfloat-abi=hard -Wl,-build-id=none -specs=$(SPEC) -Wl,-T -Wl,$(LINKER_SCRIPT) -L$(BSP_LIBPATH)
+
+BUILD_ENV=$(BUILD)/.build
+
+# All Target
+all: $(TARGET)
+
+run: $(XSA) $(BIT) $(TARGET) $(PS_INIT)
+	xsct $(LOAD_TCL) $(XSA) $(BIT) $(TARGET) $(PS_INIT)
+
+$(BUILD_ENV): $(XSA)
+	@mkdir -p $(BUILD)
+	-rm -r $(WORKSPACE)
+	xsct $(FSBL_TCL) $(XSA) $(WORKSPACE) $(PLATFORM)
+	touch $(BUILD_ENV)
+
+$(BUILD)/%.o: src/%.c $(BUILD_ENV)
+	$(GCC) $(GCC_FLAGS) -o $@ $<
+
+$(TARGET): $(LINKER_SCRIPT) $(OBJECTS)
+	$(GCC) $(LINKER_FLAGS) -o $@ $(OBJECTS) $(LIBS)
+
+# $(XSA): $(BUILD_ENV)
+$(BIT): $(BUILD_ENV)
+$(FSBL): $(BUILD_ENV)
+$(BSP): $(BUILD_ENV)
+$(LINKER_SCRIPT): $(BUILD_ENV)
+
+$(BIF): $(BUILD_ENV) $(TARGET) $(BIT) $(XSA)
+	echo "the_ROM_image:" > $(BIF)
+	echo "{" >> $(BIF)
+	echo "[bootloader]$(FSBL)" >> $(BIF)
+	echo $(BIT) >> $(BIF)
+	echo $(TARGET) >> $(BIF)
+	echo "}" >> $(BIF)
+
+$(BOOT): $(BIF)
+	bootgen -image $(BIF) -arch zynq -o $(BOOT) -w
+
+flash: $(BIF) $(BOOT) $(TARGET) $(FSBL)
+	program_flash -f $(BOOT) -offset 0 -flash_type qspi-x4-single -fsbl $(FSBL) -url TCP:127.0.0.1:3121 
+
+# Other Targets
+clean:
+	-rm -rf $(BUILD)
+
+.PHONY: all run clean flash image #dependents main-build pre-build  secondary-outputs

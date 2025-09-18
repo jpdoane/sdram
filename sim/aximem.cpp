@@ -31,15 +31,6 @@ AxiMem::AxiMem(VerilatedContext* context, double clk_freqMHz, VerilatedFstC* tfp
 	top->rready = 0;
 
 	top->rst = 1;
-
-    for(int i=0; i<1000;i++)
-        clock();
-
-	top->rst = 0;
-
-
-    std::cout << "SDRAM Ready..." << std::endl;
-    clock();
 }
 
 AxiMem::~AxiMem()
@@ -47,6 +38,23 @@ AxiMem::~AxiMem()
     top->final();    
     delete top;
 }
+
+void AxiMem::boot()
+{
+    std::cout << "SDRAM Reset..." << std::endl;
+
+    top->rst = 1;
+    for(int i=0; i<2;i++)
+        clock();
+    std::cout << "SDRAM Boot..." << std::endl;
+
+    top->rst = 0;
+    for(int i=0; i<1000;i++)
+        clock();
+
+    std::cout << "SDRAM Ready..." << std::endl;
+}
+
 
 void AxiMem::advanceSim(u64 ticks)
 {   
@@ -72,21 +80,25 @@ void AxiMem::advanceSim(u64 ticks)
 
 void AxiMem::clock()
 {
+    top->eval();
+
+    advanceSim(ticks_per_clk/2);
     top->clk = 0;
     top->sdram_clk = 1;
-    advanceSim(ticks_per_qtrclk);
 
-    top->clk = 0;
-    top->sdram_clk = 0;
-    advanceSim(ticks_per_qtrclk);
+    // top->clk = 0;
+    // top->sdram_clk = 0;
+    // advanceSim(ticks_per_qtrclk);
 
+    advanceSim(ticks_per_clk/2);
     top->clk = 1;
     top->sdram_clk = 0;
-    advanceSim(ticks_per_qtrclk);
 
-    top->clk = 1;
-    top->sdram_clk = 1;
-    advanceSim(ticks_per_qtrclk);
+    top->eval();
+
+    // top->clk = 1;
+    // top->sdram_clk = 1;
+    // advanceSim(ticks_per_qtrclk);
 }
 
 
@@ -97,6 +109,7 @@ void AxiMem::writeword(u32 data, u32 addr, u8 mask)
     top->wstrb = mask;
     top->awvalid = 1;
     top->wvalid = 1;
+    top->eval();
     while(!(top->awready && top->wready)) clock();
     clock();
     top->awvalid = 0;
@@ -105,6 +118,7 @@ void AxiMem::writeword(u32 data, u32 addr, u8 mask)
     top->wstrb = 0;
     top->wdata = 0;
     top->bready = 1;
+    top->eval();
     while(!top->bvalid) clock();
     clock();
     top->bready = 0;
@@ -114,11 +128,13 @@ u32 AxiMem::readword(u32 addr)
 {
     top->araddr = addr;
     top->arvalid = 1;
+    top->eval();
     while(!top->arready) clock();
     clock();
     top->arvalid = 0;
     top->araddr = 0;
     top->rready = 1;
+    top->eval();
     while(!top->rvalid) clock();
     u32 rdata = top->rdata;
     clock();

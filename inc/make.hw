@@ -1,0 +1,147 @@
+## these need to be set before including
+
+ifndef TOP
+	$(error TOP is not set)
+endif
+ifndef HDL_SOURCE
+	$(error HDL_SOURCE is not set)
+endif
+ifndef DEVICE
+	$(error DEVICE is not set)
+endif
+ifndef CONSTRAINTS
+	$(error CONSTRAINTS is not set)
+endif
+
+VIVADO = vivado -m64 -mode batch -notrace
+#VIVADO = vivado -m64 -notrace
+
+# common tcl scripts
+SYNTH_TCL=$(SCRIPTS)/synth.tcl
+IMPL_TCL=$(SCRIPTS)/impl.tcl
+MEM_TCL=$(SCRIPTS)/mem.tcl
+BITFILE_TCL=$(SCRIPTS)/bitfile.tcl
+DEBUG_TCL=$(SCRIPTS)/debug.tcl
+PROGRAM_TCL=$(SCRIPTS)/program.tcl
+
+default: bitfile
+
+BUILD_PATH=$(abspath build)
+BUILD_ENV=$(BUILD_PATH)/.build
+XDC_FILE=$(BUILD_PATH)/constraints.tcl
+SRC_FILE=$(BUILD_PATH)/sources.tcl
+BD_SRC_FILE=$(BUILD_PATH)/bd_sources.tcl
+
+
+$(BUILD_ENV): $(HDL_SOURCE) $(CONSTRAINTS)
+	make prebuild
+	@mkdir -p $(BUILD_PATH);
+	@rm -f $(XDC_FILE) $(SRC_FILE) $(BD_SRC_FILE);
+	touch $(SRC_FILE)
+	@for s in $(abspath $(HDL_SOURCE)) ; do \
+		echo "$$s" >> $(SRC_FILE); \
+	done
+	touch $(BD_SRC_FILE)
+	@for s in $(abspath $(BD_SOURCE)) ; do \
+		echo "$$s" >> $(BD_SRC_FILE); \
+	done
+	touch $(XDC_FILE)
+	@for s in $(abspath $(CONSTRAINTS)) ; do \
+		echo "$$s" >> $(XDC_FILE); \
+	done
+	@cp $(DEBUG_TCL) $(BUILD_PATH)
+	@touch $(BUILD_ENV)
+
+
+#synthesis
+SYNTH_PATH=$(BUILD_PATH)/synth
+SYNTH_ENV=$(SYNTH_PATH)/.synth
+SYNTH=$(SYNTH_PATH)/$(TOP).dcp
+SYNTH_ARGS_TCL=$(SYNTH_PATH)/synth_args.tcl
+
+synth: $(SYNTH)
+
+$(SYNTH_ENV): $(BUILD_ENV) $(SYNTH_TCL)
+	@mkdir -p $(SYNTH_PATH);
+	@cp $(SYNTH_TCL) $(SYNTH_PATH);
+	-@cp synth_args.tcl $(SYNTH_PATH);
+	@touch $(SYNTH_PATH)/synth_args.tcl
+	@touch $(SYNTH_ENV)
+
+$(SYNTH): $(SYNTH_ENV)
+	cd $(SYNTH_PATH) && \
+	$(VIVADO) -source $(SYNTH_TCL) -tclargs $(TOP) $(DEVICE) $(BUILD_PATH) \
+	|| $(call FAIL, SYNTHESIS, true)
+	$(call SUCCEED, SYNTHESIS, false)
+
+# open project in vivado
+gui: $(SYNTH_ENV)
+	cd $(SYNTH_PATH) && \
+	vivado -source $(SCRIPTS)/setup_proj.tcl -tclargs $(TOP) $(DEVICE) $(BUILD_PATH) &
+
+
+#place & route
+IMPL_PATH=$(BUILD_PATH)/impl
+IMPL_ENV=$(IMPL_PATH)/.impl
+IMPL=$(IMPL_PATH)/$(TOP)_routed.dcp
+IMPL_ARGS_TCL=impl_args.tcl
+DEBUG_NETS_FILE=$(IMPL_PATH)/debug_nets.tcl
+
+impl: $(IMPL)
+
+$(IMPL_ENV): $(BUILD_ENV) $(IMPL_TCL) $(BITFILE_TCL) $(PROGRAM_TCL) $(DEBUG_NETS)
+	echo "Setting up Implementation Environment"
+	@mkdir -p $(IMPL_PATH);
+	@cp $(IMPL_TCL) $(IMPL_PATH);
+	@cp $(BITFILE_TCL) $(IMPL_PATH);
+	@cp $(PROGRAM_TCL) $(IMPL_PATH);
+	-@cp $(DEBUG_NETS) $(DEBUG_NETS_FILE)
+	touch $(DEBUG_NETS_FILE)
+	-@cp $(IMPL_ARGS_TCL) $(IMPL_PATH) || true;
+	@touch $(IMPL_PATH)/$(IMPL_ARGS_TCL)
+	@touch $(IMPL_ENV)
+
+$(IMPL): $(IMPL_ENV) $(SYNTH)
+	cd $(IMPL_PATH) && \
+	$(VIVADO) -source $(IMPL_TCL) -tclargs $(TOP) $(DEVICE) $(SYNTH) $(BUILD_PATH)\
+	|| $(call FAIL, IMPLEMENTATION, true)
+	$(call SUCCEED, IMPLEMENTATION, true)
+
+mem: $(IMPL_ENV) $(IMPL) 
+	cd $(IMPL_PATH) && \
+	$(VIVADO) -source $(MEM_TCL) -tclargs $(TOP) $(DEVICE) $(IMPL) $(BUILD_PATH) \
+	|| $(call FAIL, WRITE_MEM, true)
+	$(call SUCCEED, WRITE_MEM, true)
+
+
+vivado: $(SYNTH)
+	cd $(BUILD_PATH) && vivado -source make_proj.tcl &
+
+
+# bitfile
+BITFILE=$(IMPL_PATH)/$(TOP).bit
+bitfile: $(BITFILE)
+
+$(BITFILE):	$(IMPL) $(BITFILE_PATH)
+	cd $(IMPL_PATH) && \
+	vivado -m64 -mode batch -notrace -log bitfile.log -source $(BITFILE_TCL) -tclargs $(TOP)
+
+#	cp $(IMPL_PATH)/$(TOP).bit nes.bit
+#	cp $(IMPL_PATH)/$(TOP).xsa nes.xsa
+
+.PHONY: program
+program: $(BITFILE) force_program
+
+.PHONY: force_program
+force_program:
+	cd $(IMPL_PATH) && \
+	vivado -m64 -mode batch -notrace -source $(PROGRAM_TCL) -tclargs $(BITFILE) $(DEVICE_SHORT)
+
+
+.PHONY: clean prebuild
+clean:
+	-rm -rf $(BUILD_PATH)
+	-rm $(BITFILE)
+	
+# keep intermediate files
+.SECONDARY:

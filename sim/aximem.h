@@ -26,6 +26,7 @@ private:
 public:
     AxiMem(VerilatedContext* context, double clk_freqMHz, VerilatedFstC* tfp = nullptr);
     ~AxiMem();
+    void boot();
 
     void clock();
 

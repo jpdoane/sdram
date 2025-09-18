@@ -1,0 +1,85 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Sep 18 18:36:35 2025
+[*]
+[dumpfile] "/home/jpdoane/sdram/sim2/sdram.fst"
+[dumpfile_mtime] "Thu Sep 18 18:33:07 2025"
+[dumpfile_size] 9035
+[savefile] "/home/jpdoane/sdram/sim2/waves.gtkw"
+[timestart] 20025000
+[size] 1920 993
+[pos] 1919 -33
+*-19.055128 23112700 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] sdram_axi_tb.
+[treeopen] sdram_axi_tb.sdram_axil_tb.
+[sst_width] 308
+[signals_width] 244
+[sst_expanded] 1
+[sst_vpaned_height] 282
+@800200
+-axi
+@28
+sdram_axi_tb.sdram_axil_tb.clk
+@22
+sdram_axi_tb.sdram_axil_tb.axi_if.awaddr[31:0]
+sdram_axi_tb.sdram_axil_tb.axi_if.wdata[31:0]
+@28
+sdram_axi_tb.sdram_axil_tb.axi_if.awready
+sdram_axi_tb.sdram_axil_tb.axi_if.wvalid
+sdram_axi_tb.sdram_axil_tb.axi_if.awvalid
+sdram_axi_tb.sdram_axil_tb.axi_if.wready
+@22
+sdram_axi_tb.sdram_axil_tb.axi_if.wstrb[3:0]
+@28
+sdram_axi_tb.sdram_axil_tb.axi_if.bvalid
+sdram_axi_tb.sdram_axil_tb.axi_if.bready
+@22
+sdram_axi_tb.sdram_axil_tb.axi_if.araddr[31:0]
+@28
+sdram_axi_tb.sdram_axil_tb.axi_if.arvalid
+sdram_axi_tb.sdram_axil_tb.axi_if.arready
+sdram_axi_tb.sdram_axil_tb.axi_if.rvalid
+sdram_axi_tb.sdram_axil_tb.axi_if.rready
+@22
+sdram_axi_tb.sdram_axil_tb.axi_if.rdata[31:0]
+@1000200
+-axi
+@800200
+-ctrl
+@22
+sdram_axi_tb.sdram_axil_tb.sdram_ctrl_if.addr[31:0]
+@28
+sdram_axi_tb.sdram_axil_tb.sdram_ctrl_if.error
+sdram_axi_tb.sdram_axil_tb.sdram_ctrl_if.rd
+sdram_axi_tb.sdram_axil_tb.sdram_ctrl_if.rdy
+@22
+sdram_axi_tb.sdram_axil_tb.sdram_ctrl_if.read_data[31:0]
+@28
+sdram_axi_tb.sdram_axil_tb.sdram_ctrl_if.rvalid
+@22
+sdram_axi_tb.sdram_axil_tb.sdram_ctrl_if.wr[3:0]
+sdram_axi_tb.sdram_axil_tb.sdram_ctrl_if.write_data[31:0]
+@28
+sdram_axi_tb.sdram_axil_tb.sdram_ctrl_if.wvalid
+@1000200
+-ctrl
+@800200
+-dev
+@22
+sdram_axi_tb.sdram_axil_tb.sdram_dev_if.addr[12:0]
+@28
+sdram_axi_tb.sdram_axil_tb.sdram_dev_if.ba[1:0]
+sdram_axi_tb.sdram_axil_tb.sdram_dev_if.cke
+sdram_axi_tb.sdram_axil_tb.sdram_dev_if.cmd[2:0]
+sdram_axi_tb.sdram_axil_tb.sdram_dev_if.cs
+sdram_axi_tb.sdram_axil_tb.sdram_dev_if.dqm[1:0]
+@22
+sdram_axi_tb.sdram_axil_tb.sdram_dev_if.read_data[15:0]
+@28
+sdram_axi_tb.sdram_axil_tb.sdram_dev_if.wr_en
+@22
+sdram_axi_tb.sdram_axil_tb.sdram_dev_if.write_data[15:0]
+@1000200
+-dev
+[pattern_trace] 1
+[pattern_trace] 0
