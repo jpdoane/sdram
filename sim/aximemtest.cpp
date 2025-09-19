@@ -8,29 +8,9 @@ int main(void)
 {
     double clk_freqMHz=50;
 
-    VerilatedContext* context = new VerilatedContext;
-    context->debug(0);
-    context->randReset(2);
+    AxiMem aximem(clk_freqMHz, QUOTE(WAVEFILE));
 
-
-    context->traceEverOn(true);
-    VerilatedFstC* tfp = new VerilatedFstC;
-
-    std::string tracefile = QUOTE(WAVEFILE);
-
-    AxiMem* vsim = new AxiMem(context, clk_freqMHz, tfp);
-
-    tfp->open(tracefile.c_str());
-
-    if (tfp->isOpen()) {
-        std::cout << "Logging to wavefile " << tracefile << std::endl;
-    }
-    else {
-        tfp = nullptr;
-        std::cout << "ERROR opening wavefile " << tracefile << std::endl;
-    }
-
-    vsim->boot();
+    aximem.boot();
 
     u32 data[16] = {
     0x5ac118ed,
@@ -96,7 +76,7 @@ int main(void)
     {
         d = data[i];
         a = addr[i];
-        vsim->writeword(d, a);
+        aximem.writeword(d, a);
 
         std::cout << "Wrote [0x" << a << "] = 0x"  << d << std::endl;
     }
@@ -104,21 +84,13 @@ int main(void)
     for (int i=0; i<N; i++)
     {
         a = addr[i];
-        d = vsim->readword(a);
+        d = aximem.readword(a);
         std::cout << "Read [0x" << a << "] = 0x" << d << std::endl;
         if(d != data[i])
         {
             std::cout << "\tError!" << std::endl;
             valid = 0;            
         }
-    }
-
-
-    context->traceEverOn(false);
-    if(tfp){
-        tfp->close();
-        delete tfp;
-        tfp = nullptr;
     }
 
     if(valid)

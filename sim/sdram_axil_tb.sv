@@ -35,7 +35,6 @@ module sdram_axil_tb #(
 (
     input  logic                 clk,
     input  logic                 rst,
-    input  logic                 sdram_clk,
     input  logic [ADDR_W-1:0]    awaddr,
     input  logic [2:0]           awprot,
     input  logic [AWUSER_W-1:0]  awuser,
@@ -69,7 +68,8 @@ module sdram_axil_tb #(
     // localparam DEBUG_SDRAM=0;
     // localparam real CLK_PERIOD=1000/FREQ_MHZ;
     // localparam real QTR_CLK_PERIOD=CLK_PERIOD/4;
-    // wire #QTR_CLK_PERIOD sdram_clk = clk; 
+
+    wire sdram_clk = ~clk; 
 
     sdram_ctrl_if sdram_ctrl_if();
     sdram_dev_if sdram_dev_if();

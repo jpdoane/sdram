@@ -2,53 +2,41 @@
 #include <iostream>
 #include <math.h>
 
-AxiMem::AxiMem(VerilatedContext* context, double clk_freqMHz, VerilatedFstC* tfp)
-:context(context), tfp(tfp)
+AxiMem::AxiMem(double clk_freqMHz, const char* tracefile)
 {
+    vsim = new VSim<Vsdram_axil_tb>(tracefile);
 
-    double clk_period = 1e-6/clk_freqMHz;
-    tick_period = pow(10.0, -double(Verilated::timeprecision()));
-    ticks_per_clk = u64(clk_period/tick_period);
-    ticks_per_qtrclk = ticks_per_clk/4;
+    clk_period = vsim->clk_period(clk_freqMHz*1e6);
 
-    std::cout << "clk_period:" << clk_period << std::endl;
-    std::cout << "tick_period:" << tick_period << std::endl;
-    std::cout << "ticks_per_clk:" << ticks_per_clk << std::endl;
-    std::cout << "ticks_per_qtrclk:" << ticks_per_qtrclk << std::endl;
+    vsim->awaddr = 0;
+	vsim->awvalid = 0;
+	vsim->wstrb = 0;
+	vsim->wdata = 0;
+	vsim->wvalid = 0;
+	vsim->bready = 0;
+	vsim->araddr = 0;
+	vsim->arvalid = 0;
+	vsim->rready = 0;
 
-    top = new Vsdram_axil_tb{context, "sdram_axi_tb"};
-
-    top->trace (tfp, 99);
-
-	top->awaddr = 0;
-	top->awvalid = 0;
-	top->wstrb = 0;
-	top->wdata = 0;
-	top->wvalid = 0;
-	top->bready = 0;
-	top->araddr = 0;
-	top->arvalid = 0;
-	top->rready = 0;
-
-	top->rst = 1;
+	vsim->rst = 1;
 }
 
 AxiMem::~AxiMem()
 {
-    top->final();    
-    delete top;
+    vsim->final();    
+    delete vsim;
 }
 
 void AxiMem::boot()
 {
     std::cout << "SDRAM Reset..." << std::endl;
 
-    top->rst = 1;
+    vsim->rst = 1;
     for(int i=0; i<2;i++)
         clock();
     std::cout << "SDRAM Boot..." << std::endl;
 
-    top->rst = 0;
+    vsim->rst = 0;
     for(int i=0; i<1000;i++)
         clock();
 
@@ -56,88 +44,42 @@ void AxiMem::boot()
 }
 
 
-void AxiMem::advanceSim(u64 ticks)
-{   
-    u64 tnext;
-    while(top->eventsPending())
-    {
-        tnext = top->nextTimeSlot() - context->time();
-        if(tnext >= ticks)
-            break;
-
-        context->timeInc(tnext);
-        top->eval();
-        if (tfp) tfp->dump(context->time());
-        ticks -= tnext;
-    }
-
-    context->timeInc(ticks);
-    top->eval();
-    if (tfp) tfp->dump(context->time());
-    return;
-}
-
-
-void AxiMem::clock()
-{
-    top->eval();
-
-    advanceSim(ticks_per_clk/2);
-    top->clk = 0;
-    top->sdram_clk = 1;
-
-    // top->clk = 0;
-    // top->sdram_clk = 0;
-    // advanceSim(ticks_per_qtrclk);
-
-    advanceSim(ticks_per_clk/2);
-    top->clk = 1;
-    top->sdram_clk = 0;
-
-    top->eval();
-
-    // top->clk = 1;
-    // top->sdram_clk = 1;
-    // advanceSim(ticks_per_qtrclk);
-}
-
-
 void AxiMem::writeword(u32 data, u32 addr, u8 mask)
 {
-    top->awaddr = addr;
-    top->wdata = data;
-    top->wstrb = mask;
-    top->awvalid = 1;
-    top->wvalid = 1;
-    top->eval();
-    while(!(top->awready && top->wready)) clock();
+    vsim->awaddr = addr;
+    vsim->wdata = data;
+    vsim->wstrb = mask;
+    vsim->awvalid = 1;
+    vsim->wvalid = 1;
+    vsim->eval();
+    while(!(vsim->awready && vsim->wready)) clock();
     clock();
-    top->awvalid = 0;
-    top->wvalid = 0;
-    top->awaddr = 0;
-    top->wstrb = 0;
-    top->wdata = 0;
-    top->bready = 1;
-    top->eval();
-    while(!top->bvalid) clock();
+    vsim->awvalid = 0;
+    vsim->wvalid = 0;
+    vsim->awaddr = 0;
+    vsim->wstrb = 0;
+    vsim->wdata = 0;
+    vsim->bready = 1;
+    vsim->eval();
+    while(!vsim->bvalid) clock();
     clock();
-    top->bready = 0;
+    vsim->bready = 0;
 }
 
 u32 AxiMem::readword(u32 addr)
 {
-    top->araddr = addr;
-    top->arvalid = 1;
-    top->eval();
-    while(!top->arready) clock();
+    vsim->araddr = addr;
+    vsim->arvalid = 1;
+    vsim->eval();
+    while(!vsim->arready) clock();
     clock();
-    top->arvalid = 0;
-    top->araddr = 0;
-    top->rready = 1;
-    top->eval();
-    while(!top->rvalid) clock();
-    u32 rdata = top->rdata;
+    vsim->arvalid = 0;
+    vsim->araddr = 0;
+    vsim->rready = 1;
+    vsim->eval();
+    while(!vsim->rvalid) clock();
+    u32 rdata = vsim->rdata;
     clock();
-    top->rready = 0;
+    vsim->rready = 0;
     return rdata;
 }

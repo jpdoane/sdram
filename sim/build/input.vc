@@ -1,5 +1,0 @@
-+libext+.v+.sv+.vh+.svh
--y /home/jpdoane/sdram/sim2 
--y /home/jpdoane/sdram/hdl/
--y /home/jpdoane/sdram/hdl/debug
---top-module sdram_axil_tb

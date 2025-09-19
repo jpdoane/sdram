@@ -2,33 +2,22 @@
 #define AXIMEM_H
 
 #include <stdint.h>
+#include "vsim.h"
 #include "Vsdram_axil_tb.h"
-#include "verilated.h"
-#include "verilated_fst_c.h"
 
 
-typedef uint64_t u64;
-typedef uint32_t u32;
-typedef uint8_t u8;
-
-class AxiMem{
-
+class AxiMem
+{
 private:
-    Vsdram_axil_tb* top;
-    VerilatedContext* context;
-    double tick_period;
-    u64 ticks_per_clk;
-    u64 ticks_per_qtrclk;
-    VerilatedFstC* tfp;
-
-    void advanceSim(u64 ticks);
+    VSim<Vsdram_axil_tb>* vsim;
+    u64 clk_period;
 
 public:
-    AxiMem(VerilatedContext* context, double clk_freqMHz, VerilatedFstC* tfp = nullptr);
+    AxiMem(double clk_freqMHz, const char* tracefile = nullptr);
     ~AxiMem();
     void boot();
 
-    void clock();
+    void clock() { vsim->clock(clk_period); }
 
     void writeword(u32 data, u32 addr, u8 mask = 0xf);
     u32 readword(u32 addr);

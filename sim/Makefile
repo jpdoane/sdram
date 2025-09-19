@@ -21,8 +21,8 @@ TEST_TARGET=$(BUILD_PATH)/memtest
 
 include ../inc/make.verilator
 
-CCFLAGS += -DWAVEFILE=$(TOP).fst
-CCFLAGS += -I$(BUILD_PATH)
+CCFLAGS += -DWAVEFILE=$(WAVEFILE)
+CCFLAGS += -I$(BUILD_PATH) -I../inc
 
 .PHONY: test
 test: $(TEST_TARGET)
