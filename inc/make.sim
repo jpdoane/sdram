@@ -3,8 +3,8 @@
 ifndef TOP
 	$(error TOP is not set)
 endif
-ifndef HDL_SOURCE
-	$(error HDL_SOURCE is not set)
+ifndef RTL_SOURCE
+	$(error RTL_SOURCE is not set)
 endif
 
 SIMARGS= -g2012 -Wall -Wno-timescale
@@ -24,7 +24,7 @@ default: all
 all: $(WAVEFILE)
 
 
-$(SIMFILE):  $(abspath $(HDL_SOURCE)) Makefile
+$(SIMFILE):  $(abspath $(RTL_SOURCE)) Makefile
 	@mkdir -p $(SIM_PATH);
 	cd $(SIM_PATH) && \
 	$(SIM) $(SIMARGS) -o $@ -s $(TOP) \

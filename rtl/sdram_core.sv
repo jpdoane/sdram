@@ -195,6 +195,11 @@ end
 // state machine
 always @(*)
 begin
+
+    // if(state_next == STATE_ACTIVATE)
+    //     $display("state: %d, req = %d", state, req);
+
+
     boot_complete = 0;
     sd_addr = '0;
     sd_ba = 2'b0;

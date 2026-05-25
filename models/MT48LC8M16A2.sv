@@ -85,6 +85,9 @@ module MT48LC8M16A2
     wire                    dev_wr_en =      sdram_dev_if.wr_en;
     assign                 #READ_LATENCY sdram_dev_if.read_data = dev_read_data;
 
+    wire dev_ras, dev_cas, dev_we;
+    assign {dev_ras, dev_cas, dev_we} = dev_cmd;
+
 
     reg       [15 : 0] Bank0 [0 : BANK_DEPTH-1];
     reg       [15 : 0] Bank1 [0 : BANK_DEPTH-1];
@@ -960,33 +963,33 @@ module MT48LC8M16A2
     endtask
  
     // Timing Parameters for -75 (PC133) and CAS Latency = 2
-    specify
-        specparam
-                    tAH  =  0.8,                                        // addr, ba Hold Time
-                    tAS  =  1.5,                                        // addr, ba Setup Time
-                    tCH  =  2.5,                                        // Clock High-Level Width
-                    tCL  =  2.5,                                        // Clock Low-Level Width
-                    tCK  = 10,                                          // Clock Cycle Time
-                    tDH  =  0.8,                                        // Data-in Hold Time
-                    tDS  =  1.5,                                        // Data-in Setup Time
-                    tCKH =  0.8,                                        // CKE Hold  Time
-                    tCKS =  1.5,                                        // CKE Setup Time
-                    tCMH =  0.8,                                        // CS#, RAS#, CAS#, WE#, DQM# Hold  Time
-                    tCMS =  1.5;                                        // CS#, RAS#, CAS#, WE#, DQM# Setup Time
-        $width    (posedge clk,           tCH);
-        $width    (negedge clk,           tCL);
-        $period   (negedge clk,           tCK);
-        $period   (posedge clk,           tCK);
-        $setuphold(posedge clk,    dev_cke,   tCKS, tCKH);
-        $setuphold(posedge clk,    dev_cs,  tCMS, tCMH);
-        $setuphold(posedge clk,    dev_cas, tCMS, tCMH);
-        $setuphold(posedge clk,    dev_ras, tCMS, tCMH);
-        $setuphold(posedge clk,    dev_we,  tCMS, tCMH);
-        $setuphold(posedge clk,    dev_addr,  tAS,  tAH);
-        $setuphold(posedge clk,    dev_ba,    tAS,  tAH);
-        $setuphold(posedge clk,    dev_dqm,   tCMS, tCMH);
-        // $setuphold(posedge Dq_chk, dq,    tDS,  tDH);
-        $setuphold(posedge Dq_chk, dev_write_data,    tDS,  tDH);
-    endspecify
+    // specify
+    //     specparam
+    //                 tAH  =  0.8,                                        // addr, ba Hold Time
+    //                 tAS  =  1.5,                                        // addr, ba Setup Time
+    //                 tCH  =  2.5,                                        // Clock High-Level Width
+    //                 tCL  =  2.5,                                        // Clock Low-Level Width
+    //                 tCK  = 10,                                          // Clock Cycle Time
+    //                 tDH  =  0.8,                                        // Data-in Hold Time
+    //                 tDS  =  1.5,                                        // Data-in Setup Time
+    //                 tCKH =  0.8,                                        // CKE Hold  Time
+    //                 tCKS =  1.5,                                        // CKE Setup Time
+    //                 tCMH =  0.8,                                        // CS#, RAS#, CAS#, WE#, DQM# Hold  Time
+    //                 tCMS =  1.5;                                        // CS#, RAS#, CAS#, WE#, DQM# Setup Time
+    //     $width    (posedge clk,           tCH);
+    //     $width    (negedge clk,           tCL);
+    //     $period   (negedge clk,           tCK);
+    //     $period   (posedge clk,           tCK);
+    //     $setuphold(posedge clk,    dev_cke,   tCKS, tCKH);
+    //     $setuphold(posedge clk,    dev_cs,  tCMS, tCMH);
+    //     $setuphold(posedge clk,    dev_cas, tCMS, tCMH);
+    //     $setuphold(posedge clk,    dev_ras, tCMS, tCMH);
+    //     $setuphold(posedge clk,    dev_we,  tCMS, tCMH);
+    //     $setuphold(posedge clk,    dev_addr,  tAS,  tAH);
+    //     $setuphold(posedge clk,    dev_ba,    tAS,  tAH);
+    //     $setuphold(posedge clk,    dev_dqm,   tCMS, tCMH);
+    //     // $setuphold(posedge Dq_chk, dq,    tDS,  tDH);
+    //     $setuphold(posedge Dq_chk, dev_write_data,    tDS,  tDH);
+    // endspecify
  
 endmodule

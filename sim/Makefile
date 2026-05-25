@@ -4,13 +4,13 @@ include ../inc/make.inc
 TOP=sdram_axil_tb
 BUILD_PATH=build
 
-HDL_SOURCE = 
-HDL_SOURCE += sdram_axil_tb.sv
-HDL_SOURCE += ../hdl/sdram_core.sv
-HDL_SOURCE += ../hdl/axil_sdram.sv
-HDL_SOURCE += ../hdl/sdram_if.sv
-HDL_SOURCE += ../hdl/taxi_axil_if.sv
-HDL_SOURCE += ../models/MT48LC8M16A2.sv
+RTL_SOURCE = 
+RTL_SOURCE += sdram_axil_tb.sv
+RTL_SOURCE += ../rtl/sdram_core.sv
+RTL_SOURCE += ../rtl/axil_sdram.sv
+RTL_SOURCE += ../rtl/sdram_if.sv
+RTL_SOURCE += ../rtl/taxi_axil_if.sv
+RTL_SOURCE += ../models/MT48LC8M16A2.sv
 
 VERILATOR_FLAGS += -DDEBUG_SDRAM=0
 VERILATOR_FLAGS += --timing # enable delays in rtl
