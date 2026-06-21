@@ -4,8 +4,6 @@ TOP=tb_dual_master_sdram
 SRC= \
     ../rtl/sdram_core.sv \
     ../rtl/dual_master_sdram.sv \
-    ../rtl/sdram_if.sv \
-    ../rtl/taxi_axil_if.sv \
     ../models/MT48LC8M16A2.sv \
     $(TOP).sv 
 
