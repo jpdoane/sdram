@@ -4,16 +4,15 @@ ROOT = $(abspath $(dir $(firstword $(MAKEFILE_LIST))))
 BUILD = $(ROOT)/build
 ZYNQ_COMMON = $(ROOT)/zynq_common
 
-# PL rtl firmware
+# PL RTL sources
 SDRAM_RTL = $(ROOT)/../rtl
 
-SYN_FILES = 
-SYN_FILES += $(SDRAM_RTL)/sdram_if.sv
-SYN_FILES += $(SDRAM_RTL)/taxi_axil_if.sv
-SYN_FILES += $(SDRAM_RTL)/axil_sdram.sv
+SYN_FILES  = $(SDRAM_RTL)/dual_master_sdram.sv
 SYN_FILES += $(SDRAM_RTL)/sdram_core.sv
 SYN_FILES += $(SDRAM_RTL)/sdram_io.sv
-SYN_FILES +=  $(ROOT)/top.sv
+SYN_FILES += $(ROOT)/rtl/clk_div.sv
+SYN_FILES += $(ROOT)/rtl/portb_tester.sv
+SYN_FILES += $(ROOT)/top.sv
 FPGA_TOP = zynq_sdram
 
 # constraints

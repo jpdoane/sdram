@@ -47,6 +47,9 @@ module MT48LC8M16A2
 #(
     parameter Debug=1,
     parameter IO_LATENCY_NS=5.0,
+    parameter int ROW_WIDTH  = 13,
+    parameter int BANK_WIDTH = 2,
+    parameter int COL_WIDTH  = 9,
     // Timing Parameters for -75 (PC133) and CAS Latency = 2
     parameter tAC  =   6.0,
     parameter tHZ  =   7.0,
@@ -58,32 +61,27 @@ module MT48LC8M16A2
     parameter tRP  =  20.0,
     parameter tRRD =  15.0,
     parameter tWRa =   7.5,     // A2 Version - Auto precharge mode only (1 clk + 7.5 ns)
-    parameter tWRp =  15.0     // A2 Version - Precharge mode only (15 ns)
-    
+    parameter tWRp =  15.0      // A2 Version - Precharge mode only (15 ns)
 )
 (
-    input logic clk,
-    sdram_dev_if.sub sdram_dev_if
+    input  logic                  clk,
+    input  logic                  dev_cke,
+    input  logic                  dev_cs,
+    input  logic [2:0]            dev_cmd,
+    input  logic [1:0]            dev_dqm,
+    input  logic [ROW_WIDTH-1:0]  dev_addr,
+    input  logic [1:0]            dev_ba,
+    input  logic [15:0]           dev_write_data,
+    input  logic                  dev_wr_en,
+    output logic [15:0]           dev_read_data
 );
 
-    localparam dev_ADDR_WIDTH = sdram_dev_if.ADDR_WIDTH;
-    localparam dev_ROW_WIDTH = sdram_dev_if.ROW_WIDTH;
-    localparam dev_BANK_WIDTH = sdram_dev_if.BANK_WIDTH;
-    localparam dev_COL_WIDTH = sdram_dev_if.COL_WIDTH;
-    localparam BANK_DEPTH = 2 ** (dev_ROW_WIDTH+dev_COL_WIDTH);                                  // 2 Meg
+    localparam dev_ROW_WIDTH  = ROW_WIDTH;
+    localparam dev_BANK_WIDTH = BANK_WIDTH;
+    localparam dev_COL_WIDTH  = COL_WIDTH;
+    localparam BANK_DEPTH     = 2 ** (dev_ROW_WIDTH + dev_COL_WIDTH);
 
     localparam READ_LATENCY = IO_LATENCY_NS*2;
-
-    wire [15:0]            dev_read_data;
-    wire                    dev_cke =        sdram_dev_if.cke;
-    wire                    dev_cs =         sdram_dev_if.cs;
-    wire [ 2:0]             dev_cmd =        sdram_dev_if.cmd;
-    wire [ 1:0]             dev_dqm =        sdram_dev_if.dqm;
-    wire [dev_ROW_WIDTH-1:0]    dev_addr =   sdram_dev_if.addr;
-    wire [ 1:0]             dev_ba =         sdram_dev_if.ba;
-    wire [15:0]             dev_write_data = sdram_dev_if.write_data;
-    wire                    dev_wr_en =      sdram_dev_if.wr_en;
-    assign                 #READ_LATENCY sdram_dev_if.read_data = dev_read_data;
 
     wire dev_ras, dev_cas, dev_we;
     assign {dev_ras, dev_cas, dev_we} = dev_cmd;
@@ -152,7 +150,7 @@ module MT48LC8M16A2
     wire      Dq_chk           = Sys_clk & Data_in_enable;      // Check setup/hold time for DQ
  
     // assign    dq               = Dq_reg;                        // DQ buffer
-    assign    dev_read_data               = Dq_reg;                        // DQ buffer
+    assign    #READ_LATENCY dev_read_data  = Dq_reg;                        // DQ buffer (with IO latency)
  
     // Commands Operation
     `define   ACT       0

@@ -41,5 +41,14 @@ all:
 wave:
 	gtkwave $(TOP).fst
 
+## Hardware-in-the-loop test via xsct / hw_server
+## Requires: board connected, hw_server reachable, bitfile built.
+## Optional: BITFILE=<path> XSA=<path> overrides to select a specific revision.
+BITFILE ?= ../hw/build/zynq_sdram.bit
+XSA     ?= ../hw/build/zynq_sdram.xsa
+
+hil:
+	xsct hil_test.tcl $(BITFILE) $(XSA)
+
 clean:
 	rm -rf obj_dir *.fst

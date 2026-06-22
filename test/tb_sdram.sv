@@ -9,7 +9,7 @@ module tb_sdram;
 
     sdram_ctrl_if #(
         .DATA_WIDTH(32),
-        .ADDR_WIDTH(24)
+        .ADDR_WIDTH(25)
     ) ctrl_if();
 
     sdram_dev_if dev_if();

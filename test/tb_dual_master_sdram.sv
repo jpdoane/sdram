@@ -6,7 +6,7 @@
 
 module tb_dual_master_sdram;
 
-    localparam int ADDR_WIDTH   = 24;
+    localparam int ADDR_WIDTH   = 25;
     localparam int DATA_WIDTH   = 32;
     localparam int WORD_LEN     = DATA_WIDTH/8;
     localparam int CPU_CLK_DIV  = 24;   // clk_cpu period = CPU_CLK_DIV * clk period
