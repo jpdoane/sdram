@@ -1,3 +1,7 @@
-.vscode/*
-.Xil/
-test/.Xil/
+*.vscode/
+*__pycache__/
+*.Xil/
+*/obj_dir/
+*.vcd
+*.fst
+

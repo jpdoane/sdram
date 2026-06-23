@@ -41,14 +41,18 @@ all:
 wave:
 	gtkwave $(TOP).fst
 
-## Hardware-in-the-loop test via xsct / hw_server
+## Hardware-in-the-loop test via Python + xsct subprocess
 ## Requires: board connected, hw_server reachable, bitfile built.
-## Optional: BITFILE=<path> XSA=<path> overrides to select a specific revision.
-BITFILE ?= ../hw/build/zynq_sdram.bit
-XSA     ?= ../hw/build/zynq_sdram.xsa
+## Optional overrides:
+##   BITFILE=<path>   select a specific revision bitfile
+##   XSA=<path>       matching .xsa
+##   HIL_ARGS=...     extra args passed to hil_test.py (e.g. --no-program --test 2)
+BITFILE  ?= ../hw/build/zynq_sdram.bit
+XSA      ?= ../hw/build/zynq_sdram.xsa
+HIL_ARGS ?=
 
 hil:
-	xsct hil_test.tcl $(BITFILE) $(XSA)
+	python3 hil_test.py --bitfile $(BITFILE) --xsa $(XSA) $(HIL_ARGS)
 
 clean:
 	rm -rf obj_dir *.fst
