@@ -21,7 +21,7 @@
 module zynq_sdram
 (
     input  [1:0]  SW,
-    input  [3:0]  btn,
+    input  [3:0]  BTN,
     output [3:0]  LED,
 
     // SDRAM pins
@@ -66,7 +66,9 @@ module zynq_sdram
 
     wire ACLK;   // 50 MHz from FCLK_CLK1 (drives all PL logic)
     wire ARST;   // active-high synchronous reset
-    wire ARSTN;  // active-low (for smartconnect)
+
+    // map btn[0] to reset module
+    wire btn_rst = BTN[0];
 
     localparam real FREQ_MHZ   = 50.0;
     localparam int  ADDR_WIDTH = 25;
@@ -105,29 +107,29 @@ module zynq_sdram
     // SDRAM controller signals: dual_master_sdram -> sdram_core
     // -----------------------------------------------------------------------
 
-    logic [WORD_LEN-1:0]   ctrl_wr;
-    logic                  ctrl_rd;
-    logic [ADDR_WIDTH-1:0] ctrl_addr;
-    logic [DATA_WIDTH-1:0] ctrl_write_data;
-    logic                  ctrl_rdy;
-    logic                  ctrl_rvalid;
-    logic                  ctrl_wvalid;
-    logic                  ctrl_error;
-    logic [DATA_WIDTH-1:0] ctrl_read_data;
+    (* mark_debug = "true" *) logic [WORD_LEN-1:0]   ctrl_wr;
+    (* mark_debug = "true" *) logic                  ctrl_rd;
+    (* mark_debug = "true" *) logic [ADDR_WIDTH-1:0] ctrl_addr;
+    (* mark_debug = "true" *) logic [DATA_WIDTH-1:0] ctrl_write_data;
+    (* mark_debug = "true" *) logic                  ctrl_rdy;
+    (* mark_debug = "true" *) logic                  ctrl_rvalid;
+    (* mark_debug = "true" *) logic                  ctrl_wvalid;
+    (* mark_debug = "true" *) logic                  ctrl_error;
+    (* mark_debug = "true" *) logic [DATA_WIDTH-1:0] ctrl_read_data;
 
     // -----------------------------------------------------------------------
     // SDRAM device signals: sdram_core -> sdram_io
     // -----------------------------------------------------------------------
 
-    logic        dev_cke;
-    logic        dev_cs;
-    logic [2:0]  dev_cmd;
-    logic [1:0]  dev_dqm;
-    logic [12:0] dev_addr;
-    logic [1:0]  dev_ba;
-    logic [15:0] dev_write_data;
-    logic        dev_wr_en;
-    logic [15:0] dev_read_data;
+    (* IOB = "TRUE" *) logic        dev_cke;
+    (* IOB = "TRUE" *) logic        dev_cs;
+    (* IOB = "TRUE" *) logic [2:0]  dev_cmd;
+    (* IOB = "TRUE" *) logic [1:0]  dev_dqm;
+    (* IOB = "TRUE" *) logic [12:0] dev_addr;
+    (* IOB = "TRUE" *) logic [1:0]  dev_ba;
+    (* IOB = "TRUE" *) logic [15:0] dev_write_data;
+    (* IOB = "TRUE" *) logic        dev_wr_en;
+    (* IOB = "TRUE" *) logic [15:0] dev_read_data;
 
     // -----------------------------------------------------------------------
     // portB signals: portb_tester -> dual_master_sdram
@@ -150,7 +152,7 @@ module zynq_sdram
     // -----------------------------------------------------------------------
 
     logic [25:0] hb_cnt;
-    always_ff @(posedge ACLK) hb_cnt <= hb_cnt + 1;
+    always_ff @(posedge clk) hb_cnt <= hb_cnt + 1;
 
     // -----------------------------------------------------------------------
     // LEDs
@@ -161,18 +163,32 @@ module zynq_sdram
     assign LED[2] = test_done & ~test_pass;
     assign LED[3] = hb_cnt[25];
 
+    // clock divider
+    wire clk, rst;
+    wire clk_div, div_en;
+
+    clk_div #(
+        .DIV(24)
+    ) u_clk_div (
+        .clk_master (ACLK),
+        .rst_master (ARST),
+        .clk_buf    (clk),
+        .rst_buf    (rst),
+        .clk_div    (clk_div),
+        .div_en     (div_en)
+    );
+
     // -----------------------------------------------------------------------
     // Zynq PS block design
     // -----------------------------------------------------------------------
 
     zynq_ps_axi u_zynq
     (
-        .ACLK_in          (ACLK),
+        .ACLK_in          (clk),   
         .ARST             (ARST),
-        .ARSTN            (ARSTN),
-        .CLK1             (),           // 100 MHz -- unused
-        .CLK2             (ACLK),       // 50 MHz  -- main PL clock
-
+        .ARST_in          (btn_rst),
+        .CLK0             (),           // 100 MHz -- unused
+        .CLK1             (ACLK),       // 50 MHz  -- main PL clock
         .DDR_addr         (DDR_addr),
         .DDR_ba           (DDR_ba),
         .DDR_cas_n        (DDR_cas_n),
@@ -248,8 +264,8 @@ module zynq_sdram
         .ADDR_WIDTH(ADDR_WIDTH),
         .DATA_WIDTH(DATA_WIDTH)
     ) u_dual_master (
-        .clk(ACLK),
-        .rst(ARST),
+        .clk(clk),
+        .rst(rst),
 
         // AXI-Lite port (PS master)
         .axil_awaddr (axil_awaddr[ADDR_WIDTH-1:0]),
@@ -300,8 +316,8 @@ module zynq_sdram
         .ADDR_WIDTH (ADDR_WIDTH),
         .CAS_LATENCY(2)
     ) u_sdram_core (
-        .clk            (ACLK),
-        .rst            (ARST),
+        .clk            (clk),
+        .rst            (rst),
         .ctrl_wr        (ctrl_wr),
         .ctrl_rd        (ctrl_rd),
         .ctrl_addr      (ctrl_addr),
@@ -329,8 +345,8 @@ module zynq_sdram
     sdram_io #(
         .CLK_MHZ(FREQ_MHZ)
     ) u_sdram_io (
-        .clk           (ACLK),
-        .rst           (ARST),
+        .clk           (clk),
+        .rst           (rst),
         .dev_cke       (dev_cke),
         .dev_cs        (dev_cs),
         .dev_cmd       (dev_cmd),
@@ -359,16 +375,14 @@ module zynq_sdram
     // -----------------------------------------------------------------------
 
     portb_tester #(
-        .CPU_CLK_DIV (24),
         .ADDR_WIDTH  (ADDR_WIDTH),
         .DATA_WIDTH  (DATA_WIDTH),
         .N_TEST_WORDS(4096)
     ) u_portb_tester (
-        .clk             (ACLK),
-        .rst             (ARST),
+        .clk             (clk_div),
+        .rst             (rst),
         .start           (SW[0]),
 
-        .portB_en        (portB_en),
         .portB_wr        (portB_wr),
         .portB_addr      (portB_addr),
         .portB_write_data(portB_write_data),

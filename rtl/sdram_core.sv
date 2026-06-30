@@ -275,7 +275,7 @@ always_comb begin
             if (first_cycle) sd_cmd = CTRL_READ;
             sd_ba      = bank;
             sd_addr[COL_WIDTH-1:0] = col;
-            state_delay = CNT_W'(CAS_LATENCY + BURST_SIZE - 2);
+            state_delay = CNT_W'(CAS_LATENCY + BURST_SIZE - 1);
             set_rvalid = last_cycle;
             state_next = STATE_IDLE;
         end

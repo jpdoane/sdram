@@ -41,7 +41,7 @@ BUILD_DIR  = os.path.join(HW_DIR, 'build')
 
 DEFAULT_BITFILE = os.path.join(BUILD_DIR, 'zynq_sdram.bit')
 DEFAULT_XSA     = os.path.join(BUILD_DIR, 'zynq_sdram.xsa')
-DEFAULT_PS7        = os.path.join(BUILD_DIR, 'workspace', 'sdram_test',
+DEFAULT_PS7        = os.path.join(BUILD_DIR, 'workspace', 'zynq_sdram',
                                '_ide', 'psinit', 'ps7_init.tcl')
 
 sys.path.append(str(INC_DIR))

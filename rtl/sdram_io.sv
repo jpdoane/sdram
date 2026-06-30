@@ -20,31 +20,52 @@ module sdram_io #(
     output logic [15:0]           dev_read_data,
 
     // External SDRAM pins
-    (* IOB = "TRUE" *) output          clk_sdram,
-    (* IOB = "TRUE" *) output          sdram_cke,
-    (* IOB = "TRUE" *) output          sdram_cs_n,
-    (* IOB = "TRUE" *) output          sdram_ras_n,
-    (* IOB = "TRUE" *) output          sdram_cas_n,
-    (* IOB = "TRUE" *) output          sdram_we_n,
-    (* IOB = "TRUE" *) output [1:0]    sdram_dqm,
-    (* IOB = "TRUE" *) output [12:0]   sdram_a,
-    (* IOB = "TRUE" *) output [1:0]    sdram_ba,
-    (* IOB = "TRUE" *) inout  [15:0]   sdram_dq
+    output          clk_sdram,
+    output          sdram_cke,
+    output          sdram_cs_n,
+    output          sdram_ras_n,
+    output          sdram_cas_n,
+    output          sdram_we_n,
+    output [1:0]    sdram_dqm,
+    output [12:0]   sdram_a,
+    output [1:0]    sdram_ba,
+    inout  [15:0]   sdram_dq          // set IOB constriant on dev_read_data rather than sdram_dq per: https://adaptivesupport.amd.com/s/article/66668?language=en_US
 );
 
-  ODDR2 #(
-      .DDR_ALIGNMENT("NONE"),
+//   ODDR2 #(
+//       .DDR_ALIGNMENT("NONE"),
+//       .INIT(1'b0),
+//       .SRTYPE("SYNC")
+//   ) u_clock_delay (
+//       .Q  (clk_sdram),
+//       .C0 (clk),
+//       .C1 (~clk),
+//       .CE (1'b1),
+//       .R  (1'b0),
+//       .S  (1'b0),
+//       .D0 (1'b0),
+//       .D1 (1'b1)
+//   );
+
+  wire clk_sdram_ODDR;
+  ODDR #(
+      .DDR_CLK_EDGE("SAME_EDGE"),
+    //   .DDR_CLK_EDGE("OPPOSITE_EDGE"),
       .INIT(1'b0),
       .SRTYPE("SYNC")
-  ) u_clock_delay (
-      .Q  (clk_sdram),
-      .C0 (clk),
-      .C1 (~clk),
+  ) u_clock_oddr (
+      .Q  (clk_sdram_ODDR),
+      .C  (clk),
       .CE (1'b1),
       .R  (1'b0),
       .S  (1'b0),
-      .D0 (1'b0),
-      .D1 (1'b1)
+      .D1 (1'b1),
+      .D2 (1'b0)
+  );
+
+  OBUF u_clk_obuf (
+      .I(clk_sdram_ODDR),
+      .O(clk_sdram)
   );
 
   assign sdram_cke   = dev_cke;
@@ -56,6 +77,8 @@ module sdram_io #(
   assign sdram_ba    = dev_ba;
   assign sdram_a     = dev_addr;
 
+  logic [15:0]                  dev_read_data_raw;
+
   genvar i;
   for (i = 0; i < 16; i = i + 1) begin : gen_iobuf
     IOBUF #(
@@ -63,11 +86,20 @@ module sdram_io #(
         .IOSTANDARD("LVTTL"),
         .SLEW("FAST")
     ) u_data_buf (
-        .O  (dev_read_data[i]),
+        .O  (dev_read_data_raw[i]),
         .IO (sdram_dq[i]),
         .I  (dev_write_data[i]),
         .T  (~dev_wr_en)
     );
   end
+
+  always_ff @(posedge clk) begin
+      if (rst) begin
+        dev_read_data <= '0;
+      end else begin
+        dev_read_data <= dev_read_data_raw;
+      end
+  end
+
 
 endmodule

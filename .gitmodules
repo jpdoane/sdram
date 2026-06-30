@@ -1,0 +1,3 @@
+[submodule "hw/zynq_tools"]
+	path = hw/zynq_tools
+	url = git@github.com:jpdoane/zynq_tools.git
