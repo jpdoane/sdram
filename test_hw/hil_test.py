@@ -29,22 +29,6 @@ import os
 import time
 import sys
 from pathlib import Path
-
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
-
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-INC_DIR  = os.path.normpath(os.path.join(SCRIPT_DIR, '..', 'inc'))
-HW_DIR     = os.path.normpath(os.path.join(SCRIPT_DIR, '..', 'hw'))
-BUILD_DIR  = os.path.join(HW_DIR, 'build')
-
-DEFAULT_BITFILE = os.path.join(BUILD_DIR, 'zynq_sdram.bit')
-DEFAULT_XSA     = os.path.join(BUILD_DIR, 'zynq_sdram.xsa')
-DEFAULT_PS7        = os.path.join(BUILD_DIR, 'workspace', 'zynq_sdram',
-                               '_ide', 'psinit', 'ps7_init.tcl')
-
-sys.path.append(str(INC_DIR))
 from xsct_utils import Xsct
 
 # ---------------------------------------------------------------------------
@@ -277,12 +261,12 @@ def test_retention(xsct: Xsct, tr: TestRunner, wait_s: float = 0.5):
 def main():
     parser = argparse.ArgumentParser(
         description='Hardware-in-the-loop SDRAM test for Arty Z7')
-    parser.add_argument('--bitfile', default=DEFAULT_BITFILE,
-                        help=f'Path to .bit file (default: {DEFAULT_BITFILE})')
-    parser.add_argument('--xsa', default=DEFAULT_XSA,
-                        help=f'Path to .xsa file (default: {DEFAULT_XSA})')
-    parser.add_argument('--ps7', default=DEFAULT_PS7,
-                        help=f'Path to ps7_init.tcl file (default: {DEFAULT_PS7})')
+    parser.add_argument('--bitfile', 
+                        help=f'Path to .bit file')
+    parser.add_argument('--xsa', 
+                        help=f'Path to .xsa file')
+    parser.add_argument('--ps7', 
+                        help=f'Path to ps7_init.tcl file')
     parser.add_argument('--no-program', action='store_true',
                         help='Skip FPGA programming (board already configured)')
     parser.add_argument('--test', metavar='N', type=int, action='append',

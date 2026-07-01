@@ -58,7 +58,7 @@ module portb_tester #(
     endfunction
 
     logic start_s0, start_s1;
-    logic start_pulse;
+    (* mark_debug = "true" *) logic start_pulse;
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -83,7 +83,7 @@ module portb_tester #(
         ST_DONE     = 3'd4
     } state_t;
 
-    state_t              state;
+    (* mark_debug = "true" *) state_t              state;
     logic [ADDR_BITS-1:0] word_cnt;
     logic [15:0]          err_cnt;
 

@@ -65,10 +65,10 @@ module zynq_sdram
     // -----------------------------------------------------------------------
 
     wire ACLK;   // 50 MHz from FCLK_CLK1 (drives all PL logic)
-    wire ARST;   // active-high synchronous reset
+    (* mark_debug = "true" *) wire ARST;   // active-high synchronous reset
 
     // map btn[0] to reset module
-    wire btn_rst = BTN[0];
+    (* mark_debug = "true" *) wire btn_rst = BTN[0];
 
     localparam real FREQ_MHZ   = 50.0;
     localparam int  ADDR_WIDTH = 25;
@@ -135,17 +135,35 @@ module zynq_sdram
     // portB signals: portb_tester -> dual_master_sdram
     // -----------------------------------------------------------------------
 
-    logic                  portB_en;
-    logic [WORD_LEN-1:0]   portB_wr;
-    logic [ADDR_WIDTH-1:0] portB_addr;
-    logic [DATA_WIDTH-1:0] portB_write_data;
-    logic [DATA_WIDTH-1:0] portB_read_data;
-    logic                  portB_rdy;
+    (* mark_debug = "true" *) logic [WORD_LEN-1:0]   portB_wr;
+    (* mark_debug = "true" *) logic [ADDR_WIDTH-1:0] portB_addr;
+    (* mark_debug = "true" *) logic [DATA_WIDTH-1:0] portB_write_data;
+    (* mark_debug = "true" *) logic [DATA_WIDTH-1:0] portB_read_data;
+    (* mark_debug = "true" *) logic                  portB_rdy;
+    (* mark_debug = "true" *) logic                  portB_en;
 
     // portb_tester status
     logic        test_done;
     logic        test_pass;
     logic [15:0] error_count;
+
+
+    // clock divider
+    wire clk;
+    (* mark_debug = "true" *) wire rst;
+    wire clk_div, div_en;
+
+    clk_div #(
+        .DIV(24)
+    ) u_clk_div (
+        .clk_master (ACLK),
+        .rst_master (ARST),
+        .clk_buf    (clk),
+        .rst_buf    (rst),
+        .clk_div    (clk_div),
+        .div_en     (div_en)
+    );
+    assign portB_en = div_en;
 
     // -----------------------------------------------------------------------
     // Heartbeat counter (bit [25] toggles at ~0.67 Hz at 50 MHz)
@@ -163,20 +181,6 @@ module zynq_sdram
     assign LED[2] = test_done & ~test_pass;
     assign LED[3] = hb_cnt[25];
 
-    // clock divider
-    wire clk, rst;
-    wire clk_div, div_en;
-
-    clk_div #(
-        .DIV(24)
-    ) u_clk_div (
-        .clk_master (ACLK),
-        .rst_master (ARST),
-        .clk_buf    (clk),
-        .rst_buf    (rst),
-        .clk_div    (clk_div),
-        .div_en     (div_en)
-    );
 
     // -----------------------------------------------------------------------
     // Zynq PS block design

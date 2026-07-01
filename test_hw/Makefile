@@ -3,7 +3,7 @@ FPGA_TOP = zynq_sdram
 
 ROOT = $(abspath $(dir $(firstword $(MAKEFILE_LIST))))
 BUILD = $(ROOT)/build
-ZYNQ_TOOLS = $(ROOT)/zynq_tools
+ZYNQ_TOOLS = $(abspath $(ROOT)/../zynq_tools)
 
 # board 
 DEVICE_LONG = xc7z020clg400-1
@@ -40,6 +40,8 @@ CONFIG_TCL_FILES = $(ROOT)/config.tcl
 # PS software
 PS_SOURCE = $(ROOT)/ps_src/main.c
 
-include $(ZYNQ_TOOLS)/vivado.mk
 include $(ZYNQ_TOOLS)/zynq.mk
 
+test: $(BITFILE) $(TARGET)
+	export PYTHONPATH=${PYTHONPATH}:${ZYNQ_TOOLS} ; \
+	python3 hil_test.py --bitfile $(BITFILE) --xsa $(XSA_FILE) --ps7 $(PS7_INIT)
